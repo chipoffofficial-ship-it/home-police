@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>HOME POLICE</title><meta name="hp-version" content="8"><script>(function(){var V=8;window.HP_VERSION=V;
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>HOME POLICE</title><meta name="hp-version" content="9"><script>(function(){var V=9;window.HP_VERSION=V;
 if(navigator.userAgent.indexOf('; wv)')<0||window.__HP_BOOTED)return;
 try{var c=JSON.parse(localStorage.getItem('hp_game_cache')||'null');
 if(c&&c.ver>V&&c.html&&c.html.indexOf('name="hp-version" content="'+c.ver+'"')>0){window.__HP_SKIP=true;
@@ -2391,11 +2391,18 @@ window.CASES.push({
   }
 
   // ---------- УЛИКИ ----------
+  let EVTAB = 'all';
   function vEvidence(el) {
-    const cats = {};
-    S.ev.forEach(id => { const c = C.evidence[id].cat; (cats[c] = cats[c] || []).push(id); });
+    const cats = [...new Set(S.ev.map(evCat))].sort((a, b) => (PCAT.indexOf(a) + 1 || 99) - (PCAT.indexOf(b) + 1 || 99));
+    if (EVTAB !== 'all' && EVTAB !== 'lab' && !cats.includes(EVTAB)) EVTAB = 'all';
+    const labIds = S.ev.filter(id => C.evidence[id].lab);
+    const nw = ids => ids.filter(id => S.evNew[id]).length;
+    const tabs = [['all', 'Все', S.ev]].concat(labIds.length ? [['lab', '🧪 Экспертиза', labIds]] : []).concat(cats.map(c => [c, c, S.ev.filter(id => evCat(id) === c)]));
+    const list = (EVTAB === 'all' ? S.ev : EVTAB === 'lab' ? labIds : S.ev.filter(id => evCat(id) === EVTAB)).slice().reverse();
     el.innerHTML = `<div class="fade"><h2 class="h2">Улики и экспертиза</h2><p class="hint">Всего улик: ${S.ev.length}. Вещдоки можно отправить на экспертизу Вере Соколовой.</p>
-      ${Object.keys(cats).map(c => `<h3 style="font-family:Georgia;margin:20px 0 10px">${esc(c)}</h3><div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(300px,1fr))">${cats[c].map(evCard).join('')}</div>`).join('')}</div>`;
+      <div class="ptabs" style="margin-bottom:14px">${tabs.map(([k, l, ids]) => `<button class="ptab ${EVTAB === k ? 'on' : ''}" data-et="${esc(k)}">${esc(l)} <i>${ids.length}</i>${nw(ids) ? '<span class="newdot"></span>' : ''}</button>`).join('')}</div>
+      <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(300px,1fr))">${list.map(evCard).join('') || '<div class="card">Пусто.</div>'}</div></div>`;
+    el.querySelectorAll('[data-et]').forEach(b => b.onclick = () => { EVTAB = b.dataset.et; vEvidence(el); });
     el.querySelectorAll('.ev').forEach(d => d.onclick = () => openEvidence(d.dataset.e));
   }
   function evCard(id) {

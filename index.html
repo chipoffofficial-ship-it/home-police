@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HOME POLICE — скачать</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%95%B5%EF%B8%8F%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Golos+Text:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* VOICE: тихий нуар, уверенный и короткий
+   IDEA: служебная папка уголовного дела на столе следователя
+   PICTURE: полицейский значок над городом в тумане, две папки-выдачи
+   COLOUR and TYPE: ночной индиго, бумага папки, золото значка; Playfair Display + Golos Text
+   LAYOUT: заголовок и значок, затем две карточки-папки рядом, внизу инструкции */
+:root{color-scheme:dark;--bg:#0b0e14;--bg2:#121826;--ink:#ece6d8;--mut:#9aa3b5;--gold:#e3b55e;--gold2:#a77a2c;--paper:#efe5cf;--paper2:#dccaa3;--pink:#c4473f;--line:#263046}
+:root[data-theme=light]{color-scheme:light}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:radial-gradient(1200px 600px at 70% -10%,#24304a 0%,transparent 60%),radial-gradient(900px 500px at 0% 110%,#2a2116 0%,transparent 55%),var(--bg);color:var(--ink);font:16px/1.55 "Golos Text",system-ui,sans-serif;overflow-x:clip;min-height:100vh}
+.band{padding:clamp(28px,5vw,64px) max(5vw,16px)}
+.wrap{max-width:1100px;margin:0 auto}
+.hero{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:clamp(20px,4vw,56px);align-items:center}
+h1{font-family:"Playfair Display",Georgia,serif;font-size:clamp(42px,7vw,76px);line-height:1.02;margin:0;letter-spacing:2px;background:linear-gradient(180deg,#f7dd9d,#c8933d 60%,#8c6422);-webkit-background-clip:text;background-clip:text;color:transparent;text-wrap:balance}
+.lead{font-size:18px;color:#cfd6e3;max-width:56ch;margin:14px 0 0}
+.facts{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px}
+.facts span{border:1px solid var(--line);background:#141b2a;border-radius:999px;padding:6px 14px;font-size:14px;color:#d8dfec;white-space:nowrap}
+.scene{position:relative;aspect-ratio:1/1;max-width:420px;justify-self:center;width:100%}
+.scene svg{width:100%;height:100%;display:block}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px;margin-top:8px}
+.folder{position:relative;background:linear-gradient(170deg,var(--paper),var(--paper2));color:#2a231a;border-radius:6px 14px 14px 14px;padding:26px 26px 22px;box-shadow:0 18px 50px rgba(0,0,0,.5);border-top:26px solid #c9b48a}
+.folder:before{content:attr(data-tab);position:absolute;top:-22px;left:18px;font-weight:700;font-size:13px;letter-spacing:1.5px;color:#5c4a2b}
+.folder h2{font-family:"Playfair Display",Georgia,serif;font-size:32px;line-height:1.05;margin:0 0 4px}
+.folder .os{color:#6b5a3e;font-size:15px}
+.folder .ic{position:absolute;right:22px;top:16px;width:58px;height:58px}
+.meta{display:flex;gap:14px;flex-wrap:wrap;margin:14px 0 18px;font-size:14px;color:#5a4b33}
+.meta b{color:#2a231a}
+.dl{text-decoration:none;display:flex;align-items:center;justify-content:center;gap:10px;width:100%;min-height:52px;border:0;border-radius:12px;background:linear-gradient(180deg,#2b3550,#1a2134);color:#fff;font:700 17px "Golos Text",sans-serif;cursor:pointer;transition:transform .15s,box-shadow .15s}
+.dl:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(0,0,0,.35)}
+.dl:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
+.dl[disabled]{opacity:.55;cursor:wait;transform:none}
+.status{min-height:22px;margin-top:10px;font-size:14px;color:#5a4b33}
+.status.err{color:#9b2c25}
+.steps{margin:16px 0 0;padding-left:20px;font-size:14.5px;color:#3a3122}
+.steps li{margin:5px 0}
+.online{margin-top:26px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;border:1px solid var(--line);background:#121826;border-radius:14px;padding:18px 22px}
+.online b{font-size:17px}
+.online p{margin:4px 0 0;color:var(--mut);font-size:14.5px}
+.online a{color:#1b1408;background:linear-gradient(180deg,#e9bf6a,#b98a37);text-decoration:none;font-weight:700;padding:12px 20px;border-radius:10px;white-space:nowrap}
+.online a:focus-visible{outline:3px solid #fff;outline-offset:3px}
+.note{color:var(--mut);font-size:13.5px;margin-top:22px;max-width:80ch}
+@media(max-width:820px){.hero{grid-template-columns:1fr}.scene{max-width:300px;order:-1}.grid{grid-template-columns:1fr}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+.fog{animation:drift 14s ease-in-out infinite alternate}
+@keyframes drift{to{transform:translateX(18px)}}
+</style>
+</head>
+<body>
+<main>
+<section class="band">
+  <div class="wrap hero">
+    <div>
+      <h1>HOME POLICE</h1>
+      <p class="lead">Детектив, где вы сами ведёте расследование: допросы, улики, переписки и звонки в телефонах подозреваемых, банковские переводы и прослушка. Скачайте игру на компьютер или телефон.</p>
+      <div class="facts"><span>101 дело</span><span>Без интернета</span><span>Сохранение прогресса</span><span>На русском</span></div>
+    </div>
+    <div class="scene" aria-hidden="true">
+      <svg viewBox="0 0 400 400">
+        <defs>
+          <linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f7dd9d"/><stop offset=".6" stop-color="#c8933d"/><stop offset="1" stop-color="#8c6422"/></linearGradient>
+          <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1a2338"/><stop offset="1" stop-color="#0b0e14"/></linearGradient>
+          <clipPath id="cc"><circle cx="200" cy="200" r="189"/></clipPath>
+          <radialGradient id="lamp" cx="50%" cy="0%" r="80%"><stop offset="0" stop-color="#ffe2a0" stop-opacity=".55"/><stop offset="1" stop-color="#ffe2a0" stop-opacity="0"/></radialGradient>
+        </defs>
+        <circle cx="200" cy="200" r="190" fill="url(#sky)" stroke="#263046" stroke-width="2"/>
+        <g fill="#141b29">
+          <rect x="40" y="250" width="50" height="110"/><rect x="95" y="215" width="40" height="145"/><rect x="140" y="265" width="60" height="95"/>
+          <rect x="250" y="230" width="45" height="130"/><rect x="300" y="200" width="55" height="160"/>
+        </g>
+        <g fill="#e3b55e" opacity=".75">
+          <rect x="52" y="270" width="7" height="9"/><rect x="70" y="300" width="7" height="9"/><rect x="105" y="240" width="7" height="9"/><rect x="118" y="280" width="7" height="9"/>
+          <rect x="262" y="250" width="7" height="9"/><rect x="315" y="225" width="7" height="9"/><rect x="333" y="270" width="7" height="9"/><rect x="160" y="290" width="7" height="9"/>
+        </g>
+        <rect x="222" y="150" width="4" height="210" fill="#2a3346"/><circle cx="224" cy="150" r="9" fill="#ffe2a0"/><path d="M224 150 L170 360 L278 360Z" fill="url(#lamp)"/>
+        <g clip-path="url(#cc)"><g class="fog" fill="#8a96b0" opacity=".14"><ellipse cx="120" cy="335" rx="150" ry="26"/><ellipse cx="300" cy="350" rx="140" ry="22"/></g></g>
+        <g transform="translate(200 120)">
+          <path d="M0 -84 L64 -60 Q67 8 0 72 Q-67 8 -64 -60Z" fill="url(#g)" stroke="#5c4215" stroke-width="3"/>
+          <path d="M0 -68 L50 -50 Q52 4 0 56 Q-52 4 -50 -50Z" fill="#141922"/>
+          <path d="M0 -44 L34 -16 L28 -16 L28 18 L-28 18 L-28 -16 L-34 -16Z" fill="url(#g)"/>
+          <rect x="-8" y="-4" width="16" height="22" fill="#141922"/>
+          <path d="M0 28 L3.4 36 L12 36 L5 41 L8 50 L0 45 L-8 50 L-5 41 L-12 36 L-3.4 36Z" fill="url(#g)"/>
+        </g>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<section class="band" style="padding-top:0">
+  <div class="wrap">
+    <div class="grid">
+      <article class="folder" data-tab="ДЕЛО: ПК">
+        <svg class="ic" viewBox="0 0 64 64" aria-hidden="true"><rect x="6" y="10" width="52" height="34" rx="4" fill="#2a231a"/><rect x="11" y="15" width="42" height="24" rx="2" fill="#3b5a8a"/><rect x="24" y="46" width="16" height="6" fill="#2a231a"/><rect x="16" y="52" width="32" height="4" rx="2" fill="#2a231a"/></svg>
+        <h2>Windows</h2>
+        <div class="os">Windows 10 и 11 · установщик</div>
+        <div class="meta"><span>Размер: <b>8,6 МБ</b></span><span>Файл: <b>HOME_POLICE_Setup.exe</b></span></div>
+        <a class="dl" href="HOME_POLICE_Setup.exe" download>⬇ Скачать для ПК</a>
+                <ol class="steps">
+          <li>Запустите скачанный <b>HOME_POLICE_Setup.exe</b>.</li>
+          <li>Если появится «Windows защитила ваш компьютер» — нажмите «Подробнее», затем «Выполнить в любом случае».</li>
+          <li>Выберите папку и ярлыки, нажмите «Установить». Игра откроется на весь экран (F11 — оконный режим).</li>
+        </ol>
+      </article>
+      <article class="folder" data-tab="ДЕЛО: ТЕЛЕФОН">
+        <svg class="ic" viewBox="0 0 64 64" aria-hidden="true"><rect x="18" y="4" width="28" height="56" rx="6" fill="#2a231a"/><rect x="22" y="11" width="20" height="40" rx="2" fill="#3b7a5a"/><circle cx="32" cy="55" r="2.5" fill="#efe5cf"/></svg>
+        <h2>Android</h2>
+        <div class="os">Android 5 и новее · APK</div>
+        <div class="meta"><span>Размер: <b>0,14 МБ</b></span><span>Файл: <b>HOME_POLICE.apk</b></span></div>
+        <a class="dl" href="HOME_POLICE.apk" download>⬇ Скачать для Android</a>
+                <ol class="steps">
+          <li>Откройте скачанный <b>HOME_POLICE.apk</b>. Если телефон спросит — разрешите установку из этого источника.</li>
+          <li>Нажмите «Установить». Если Play Protect предупредит — «Всё равно установить».</li>
+        </ol>
+      </article>
+    </div>
+
+    <p class="note">Игра бесплатная и работает без интернета. Обновляется сама: при запуске с интернетом она скачивает новую версию, профили и раскрытые дела сохраняются. Текущая версия игры: <b id="ver">3</b>.</p>
+  </div>
+</section>
+</main>
+<script>
+{ fetch('game/version.json', { cache: 'no-store' }).then(r => r.json()).then(v => { const e = document.getElementById('ver'); if (e && v.version) e.textContent = v.version; }).catch(() => {}); }
+</script>
+</body>
+</html>

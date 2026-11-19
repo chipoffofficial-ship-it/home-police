@@ -195,36 +195,22 @@
     return job;
   }
 
-  // ---------- воспроизведение ----------
-  let AC = null, gen = 0, playAt = 0, srcs = [], work = Promise.resolve(), RTF = 0.5;
+  // ---------- синтез заранее и воспроизведение ----------
+  // Фразы синтезируются по очереди сразу, как только известны (prepare), а играются, когда их покажут (play).
+  let AC = null, gen = 0, playAt = 0, srcs = [];
   function ac() {
     if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)();
     if (AC.state === 'suspended') AC.resume().catch(() => {});
     return AC;
   }
   ['pointerdown', 'keydown', 'touchstart'].forEach(ev => document.addEventListener(ev, () => { if (AC && AC.state === 'suspended') AC.resume().catch(() => {}); }, { passive: true, capture: true }));
-  // обрезаем тишину по краям фрагмента, оставляя короткие «хвосты», чтобы звук не щёлкал
   function trim(x, sr) {
-    const th = 0.006, keep = Math.floor(sr * 0.025);
+    const th = 0.006, keep = Math.floor(sr * 0.02);
     let a = 0, z = x.length - 1;
     while (a < x.length && Math.abs(x[a]) < th) a++;
     while (z > a && Math.abs(x[z]) < th) z--;
     if (z <= a) return x;
     return x.subarray(Math.max(0, a - keep), Math.min(x.length, z + 1 + keep));
-  }
-  // gapAfter — пауза после фрагмента: короткая внутри реплики, чуть длиннее между репликами
-  function playSamples(samples, sr, rate, startAt, gapAfter) {
-    const c = ac();
-    samples = trim(samples, sr);
-    const b = c.createBuffer(1, samples.length, sr); b.getChannelData(0).set(samples);
-    const s = c.createBufferSource(); s.buffer = b; s.playbackRate.value = rate || 1;
-    const g = c.createGain(); g.gain.value = 1; s.connect(g); g.connect(c.destination);
-    const at = Math.max(c.currentTime + 0.02, playAt, startAt || 0);
-    const dur = samples.length / sr / (rate || 1);
-    s.start(at); playAt = at + dur + (gapAfter || 0);
-    window.HPPiper.last = { n: samples.length, sr, dur, rms: Math.sqrt(samples.reduce((a, x) => a + x * x, 0) / Math.max(1, samples.length)) };
-    srcs.push(s); s.onended = () => { srcs = srcs.filter(x => x !== s); };
-    return dur;
   }
   function splitText(t) {
     const out = [];
@@ -235,44 +221,71 @@
     });
     return out;
   }
-  // проговорить фразу; opts: { voice, speed, pitch }
-  function speak(text, opts) {
+  // очередь синтеза: задания выполняются строго по порядку
+  let synth = Promise.resolve();
+  function prepare(text, opts) {
     opts = opts || {};
-    if (!st.ready) return false;
-    const my = gen, id = opts.voice && VOICES.some(v => v.id === opts.voice) ? opts.voice : VOICES[0].id;
+    if (!st.ready) return null;
+    const id = opts.voice && VOICES.some(v => v.id === opts.voice) ? opts.voice : VOICES[0].id;
+    const job = { gen, chunks: [], waiters: [], done: false, failed: false, rate: opts.pitch || 1, onFail: opts.onFail };
+    const wake = () => { const w = job.waiters; job.waiters = []; w.forEach(f => f()); };
     const parts = splitText(text);
-    try { ac(); } catch (e) { return false; }
-    work = work.then(async () => {
-      if (my !== gen) return;
+    synth = synth.then(async () => {
+      if (job.gen !== gen) { job.done = true; wake(); return; }
       try {
         await ensureVoice(id);
-        // сначала разбиваем всё на звуки (это быстро), потом синтезируем по предложениям
-        const all = [];
-        for (const p of parts) { if (my !== gen) return; (await PW.call({ op: 'phon', text: p })).res.forEach(x => all.push(x)); }
-        const rate = opts.pitch || 1, spd = opts.speed || 1;
-        const est = x => x.length * 0.062 / spd / rate; // примерная длительность фрагмента, с
-        let startAt = 0;
-        for (let k = 0; k < all.length; k++) {
-          if (my !== gen) return;
-          const t0 = performance.now();
-          const r = await TW.call({ op: 'gen', name: id, ph: all[k], speed: spd });
-          if (my !== gen) return;
-          const real = r.samples.length / r.sr / rate;
-          RTF = RTF * 0.6 + Math.min(4, (performance.now() - t0) / 1000 / Math.max(0.2, real)) * 0.4;
-          if (k === 0 && all.length > 1 && RTF > 0.85) {
-            // медленное устройство: чуть придерживаем начало, чтобы фраза шла без провалов
-            const rest = all.slice(1).reduce((a, x) => a + est(x), 0), last = est(all[all.length - 1]);
-            const wait = Math.min(6, Math.max(0, RTF * 1.1 * rest - (real + rest - last)));
-            if (wait > 0.05) startAt = ac().currentTime + wait;
+        for (const p of parts) {
+          if (job.gen !== gen) break;
+          const ph = (await PW.call({ op: 'phon', text: p })).res;
+          for (const x of ph) {
+            if (job.gen !== gen) break;
+            const r = await TW.call({ op: 'gen', name: id, ph: x, speed: opts.speed || 1 });
+            job.chunks.push({ s: trim(r.samples, r.sr), sr: r.sr }); wake();
           }
-          playSamples(r.samples, r.sr, rate, k === 0 ? startAt : 0, k === all.length - 1 ? 0.3 : 0.09);
         }
       } catch (e) {
+        job.failed = true;
         st.error = String(e && e.message || e); st.fails = (st.fails || 0) + 1;
         if (st.fails >= 3) { st.ready = false; st.state = 'error'; emit(); }
-        if (opts.onFail) try { opts.onFail(e); } catch (x) { /* ignore */ }
       }
+      job.done = true; wake();
     });
+    return job;
+  }
+  const nextChunk = (job, k) => new Promise(res => { const chk = () => (job.chunks.length > k || job.done ? res(job.chunks[k] || null) : job.waiters.push(chk)); chk(); });
+  // играть подготовленную фразу: started — когда зазвучала, ended — когда закончилась
+  function play(job) {
+    let onStart, onEnd;
+    const started = new Promise(r => (onStart = r)), ended = new Promise(r => (onEnd = r));
+    if (!job) { onStart(false); onEnd(false); return { started, ended }; }
+    (async () => {
+      let k = 0, endAt = 0;
+      for (;;) {
+        const c = await nextChunk(job, k);
+        if (!c || job.gen !== gen) break;
+        const x = ac();
+        const b = x.createBuffer(1, c.s.length, c.sr); b.getChannelData(0).set(c.s);
+        const src = x.createBufferSource(); src.buffer = b; src.playbackRate.value = job.rate;
+        src.connect(x.destination);
+        const at = Math.max(x.currentTime + 0.01, playAt);
+        const dur = c.s.length / c.sr / job.rate;
+        src.start(at); srcs.push(src); src.onended = () => { srcs = srcs.filter(y => y !== src); };
+        playAt = at + dur + 0.05; endAt = at + dur;
+        window.HPPiper.last = { n: c.s.length, sr: c.sr, dur, rms: Math.sqrt(c.s.reduce((a, v) => a + v * v, 0) / Math.max(1, c.s.length)) };
+        if (k === 0) setTimeout(() => onStart(true), Math.max(0, (at - x.currentTime) * 1000));
+        k++;
+      }
+      if (k === 0) { onStart(false); onEnd(false); if (job.failed && job.onFail) try { job.onFail(); } catch (e) { /* ignore */ } return; }
+      playAt += 0.08;
+      setTimeout(() => onEnd(true), Math.max(0, (endAt - ac().currentTime) * 1000));
+    })();
+    return { started, ended };
+  }
+  // сказать сразу (без предварительной подготовки)
+  function speak(text, opts) {
+    const job = prepare(text, opts);
+    if (!job) return false;
+    play(job);
     return true;
   }
   function stop() {
@@ -303,7 +316,7 @@
     VOICES, TOTAL, MOBILE,
     status: () => st,
     onChange: f => listeners.push(f),
-    start: run, speak, stop, speaking,
+    start: run, speak, prepare, play, stop, speaking,
     test: async () => { await run(); return st; }
   };
   // скачивание и запуск — сами, через несколько секунд после старта игры

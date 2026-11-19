@@ -279,7 +279,8 @@
       const item = { id: m.id, from: m.from, time: clock(), read: false, text: m.text || null, lines: m.lines || null, call: !!m.call };
       S.inbox.unshift(item);
       setFlags(m.set);
-      if (m.call) callQueue.push(item); else { snd('msg'); toast(`💬 <b>${esc(C.people[m.from].name)}</b>: ${esc(m.text.slice(0, 90))}${m.text.length > 90 ? '…' : ''}`); }
+      if (m.call) callQueue.push(item);
+      else voiced(document.querySelector('.ov') ? null : prepLine(m.from, m.text), m.from, document.querySelector('.ov') ? '' : m.text, () => { snd('msg'); toast(`💬 <b>${esc(C.people[m.from].name)}</b>: ${esc(m.text.slice(0, 90))}${m.text.length > 90 ? '…' : ''}`); }, () => {}, 0, 0);
     } else if (q.type === 'lab') {
       const e = C.evidence[q.id];
       S.labs[q.id].done = true;
@@ -821,11 +822,13 @@
     if (!animate) return;
     let i = 0;
     const lock = $('#tops'); if (lock) lock.style.pointerEvents = 'none';
+    const jobs = parsed.map(l => (l[0] === 'p' ? prepLine(pid, l[1]) : l[0] === 'me' ? prepLine('me', l[1]) : null));
     (function next() {
-      if (i >= parsed.length) { if (lock) lock.style.pointerEvents = ''; drawTopics(pid); return; }
-      log.appendChild(lineEl(parsed[i][0], parsed[i][1], pid)); log.scrollTop = log.scrollHeight;
-      const sp = parsed[i][0] === 'p' ? say(pid, parsed[i][1]) : parsed[i][0] === 'me' ? say('me', parsed[i][1]) : 0;
-      i++; setTimeout(next, sp ? Math.max(520, sp) : parsed[i - 1][0] === 'me' ? 250 : 520);
+      if (i >= parsed.length || !log.isConnected) { if (lock) lock.style.pointerEvents = ''; if (log.isConnected) drawTopics(pid); return; }
+      const [c, t] = parsed[i], k = i; i++;
+      const show = () => { log.appendChild(lineEl(c, t, pid)); log.scrollTop = log.scrollHeight; };
+      if (c === 'p' || c === 'me') voiced(jobs[k], c === 'p' ? pid : 'me', t, show, next, 120, c === 'me' ? 250 : 520, () => log.isConnected);
+      else { show(); setTimeout(next, 520); }
     })();
   }
   function drawTopics(pid) {
@@ -920,14 +923,17 @@
       $('.call .st').textContent = 'Идёт разговор';
       $('#cb').innerHTML = '';
       const cl = $('#cl'); let i = 0;
+      const jobs = m.lines.map(([w, t]) => prepLine(w === '>' ? 'me' : m.from, t));
       (function next() {
+        if (!cl.isConnected) return;
         if (i >= m.lines.length) { $('#cb').innerHTML = '<button class="cbtn no" id="end">✕</button>'; $('#end').onclick = () => { closeOv(); updateBadges(); }; return; }
-        const [w, t] = m.lines[i];
-        const d = document.createElement('div'); d.className = 'ln ' + (w === '>' ? 'me' : 'p'); d.style.maxWidth = '100%'; d.style.fontSize = '14px';
-        d.innerHTML = w === '>' ? esc(t) : `<b style="color:var(--gold);font-size:12px;display:block">${esc(w)}</b>${esc(t)}`;
-        cl.appendChild(d); cl.scrollTop = cl.scrollHeight; i++;
-        const sp = say(w === '>' ? 'me' : m.from, t);
-        setTimeout(next, Math.max(900, sp));
+        const [w, t] = m.lines[i], k = i; i++;
+        const show = () => {
+          const d = document.createElement('div'); d.className = 'ln ' + (w === '>' ? 'me' : 'p'); d.style.maxWidth = '100%'; d.style.fontSize = '14px';
+          d.innerHTML = w === '>' ? esc(t) : `<b style="color:var(--gold);font-size:12px;display:block">${esc(w)}</b>${esc(t)}`;
+          cl.appendChild(d); cl.scrollTop = cl.scrollHeight;
+        };
+        voiced(jobs[k], w === '>' ? 'me' : m.from, t, show, next, 150, 900, () => cl.isConnected);
       })();
     };
     $('#acc').onclick = accept;
@@ -939,8 +945,19 @@
     $('#x').onclick = () => { closeOv(); updateBadges(); };
     ov.querySelectorAll('[data-i]').forEach(d => d.onclick = () => {
       const m = S.inbox[+d.dataset.i]; m.read = true; persist();
-      const body = m.lines ? m.lines.map(([w, t]) => `<div class="ln ${w === '>' ? 'me' : 'p'}" style="max-width:100%;margin:6px 0">${w === '>' ? '' : `<b style="color:var(--gold);font-size:12px;display:block">${esc(w)}</b>`}${esc(t)}</div>`).join('') : `<div class="ln p" style="max-width:100%">${esc(m.text)}</div>`;
-      popup(`<h2>${m.call ? '📞 Звонок' : '💬 Сообщение'}: ${esc(C.people[m.from].name)}</h2><div style="color:var(--mut);margin-bottom:10px">${esc(m.time)}</div>${body}`, null, openInbox);
+      const L = m.lines ? m.lines : [[C.people[m.from].name, m.text]];
+      const lnHtml = ([w, t]) => `<div class="ln ${w === '>' ? 'me' : 'p'}" style="max-width:100%;margin:6px 0">${w === '>' || !m.lines ? '' : `<b style="color:var(--gold);font-size:12px;display:block">${esc(w)}</b>`}${esc(t)}</div>`;
+      const live = voiceOn();
+      popup(`<h2>${m.call ? '📞 Звонок' : '💬 Сообщение'}: ${esc(C.people[m.from].name)}</h2><div style="color:var(--mut);margin-bottom:10px">${esc(m.time)}</div><div id="ibx">${live ? '' : L.map(lnHtml).join('')}</div>`, box => {
+        if (!live) return;
+        const el = box.querySelector('#ibx'), jobs = L.map(([w, t]) => prepLine(w === '>' ? 'me' : m.from, t));
+        let i = 0;
+        (function next() {
+          if (i >= L.length || !el.isConnected) return;
+          const k = i; i++;
+          voiced(jobs[k], L[k][0] === '>' ? 'me' : m.from, L[k][1], () => { el.insertAdjacentHTML('beforeend', lnHtml(L[k])); el.scrollIntoView({ block: 'end' }); }, next, 150, 700, () => el.isConnected);
+        })();
+      }, openInbox);
     });
   }
   function callGromov() {
@@ -951,14 +968,17 @@
   function incomingCallOut(lines) {
     overlay(`<div class="call"><div class="ph">${pt('gromov')}</div><h3>Комиссар Громов</h3><div class="st">Исходящий звонок</div><div id="cl" class="calllog"></div><div id="cb"></div></div>`);
     const cl = $('#cl'); let i = 0;
+    const jobs = lines.map(([w, t]) => prepLine(w === '>' ? 'me' : 'gromov', t));
     (function next() {
+      if (!cl.isConnected) return;
       if (i >= lines.length) { $('#cb').innerHTML = '<button class="cbtn no" id="end">✕</button>'; $('#end').onclick = closeOv; return; }
-      const [w, t] = lines[i];
-      const d = document.createElement('div'); d.className = 'ln ' + (w === '>' ? 'me' : 'p'); d.style.maxWidth = '100%'; d.style.fontSize = '14px';
-      d.innerHTML = w === '>' ? esc(t) : `<b style="color:var(--gold);font-size:12px;display:block">${esc(w)}</b>${esc(t)}`;
-      cl.appendChild(d); i++;
-      const sp = say(w === '>' ? 'me' : 'gromov', t);
-      setTimeout(next, Math.max(800, sp));
+      const [w, t] = lines[i], k = i; i++;
+      const show = () => {
+        const d = document.createElement('div'); d.className = 'ln ' + (w === '>' ? 'me' : 'p'); d.style.maxWidth = '100%'; d.style.fontSize = '14px';
+        d.innerHTML = w === '>' ? esc(t) : `<b style="color:var(--gold);font-size:12px;display:block">${esc(w)}</b>${esc(t)}`;
+        cl.appendChild(d); cl.scrollTop = cl.scrollHeight;
+      };
+      voiced(jobs[k], w === '>' ? 'me' : 'gromov', t, show, next, 150, 800, () => cl.isConnected);
     })();
   }
 
@@ -1140,6 +1160,37 @@
     const pick = SAVE.settings[f ? 'pFemale' : 'pMale'];
     if (pid === 'gromov' || pid === 'vera') return pool.some(v => v.id === pick) ? pick : pool[0].id;
     return pool[hashStr(pid || 'x') % pool.length].id;
+  }
+  function piperJob(pid, t, fOverride) {
+    const P = (C && C.people && C.people[pid]) || {};
+    const f = fOverride !== undefined ? fOverride : (pid === 'vera' ? true : pid === 'gromov' ? false : !!P.f), h = hashStr(pid || 'x');
+    if (pid === 'me') { const v = piperVoice('me', false); return PIPER.prepare(t, { voice: v, pitch: v === piperVoice('gromov', false) ? 1.07 : 1, speed: 1.04, onFail: () => { if (TTS_NATIVE || TTS_WEB) sayDevice(pid, t); } }); }
+    const pitch = pid === 'gromov' || pid === 'vera' || fOverride !== undefined ? 1 : 0.95 + (h % 11) / 100;
+    const speed = P.age > 62 ? 0.9 : P.age && P.age < 28 ? 1.08 : 1.0;
+    return PIPER.prepare(t, { voice: piperVoice(pid, f), pitch, speed, onFail: () => { if (TTS_NATIVE || TTS_WEB) sayDevice(pid, t, fOverride); } });
+  }
+  // голос для реплики, подготовленный заранее (только Piper); null — если озвучки нет
+  function prepLine(pid, text) {
+    const t = clean(text); if (!t || !voiceOn() || !piperOn()) return null;
+    if (pid === 'me' && SAVE.settings.pMe === 'off') return null;
+    return piperJob(pid, t);
+  }
+  // показать реплику одновременно с голосом и перейти к следующей, когда голос закончится
+  function voiced(job, pid, text, show, next, gap, plain, alive) {
+    if (job) {
+      TTS_LAST = 'piper';
+      const h = PIPER.play(job);
+      let shown = false, went = false;
+      const doShow = () => { if (!shown) { shown = true; show(); } };
+      const go = () => { if (!went) { went = true; doShow(); if (!alive || alive()) next(); } };
+      Promise.race([h.started, new Promise(r => setTimeout(r, 4000))]).then(doShow);
+      h.ended.then(ok => setTimeout(go, ok ? gap : Math.max(gap, Math.min(6000, 500 + clean(text).length * 45))));
+      setTimeout(go, Math.min(40000, 8000 + clean(text).length * 130));
+    } else {
+      show();
+      const sp = say(pid, text);
+      setTimeout(() => { if (!alive || alive()) next(); }, sp ? Math.max(plain, sp) : plain);
+    }
   }
   function sayPiper(pid, t, fOverride) {
     const P = (C && C.people && C.people[pid]) || {};

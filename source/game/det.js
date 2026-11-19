@@ -130,12 +130,12 @@
         for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * 0.5;
         const ns = AC.createBufferSource(); ns.buffer = buf; ns.loop = true;
         const bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 2400; bp.Q.value = 0.6;
-        const rg = AC.createGain(); rg.gain.value = 0.05;
+        const rg = AC.createGain(); rg.gain.value = 0.025;
         ns.connect(bp); bp.connect(rg); rg.connect(MUS.master); ns.start();
       }
       MUS.on = true;
       MUS.master.gain.cancelScheduledValues(AC.currentTime);
-      MUS.master.gain.setTargetAtTime(0.55, AC.currentTime, 2.5);
+      MUS.master.gain.setTargetAtTime(0.16, AC.currentTime, 2.5);
       MUS.next = AC.currentTime + 0.3;
       const tick = () => { while (MUS.next < AC.currentTime + 1.5) { musicBar(MUS.next); MUS.next += 8; } };
       tick(); MUS.timer = setInterval(tick, 500);
@@ -1063,10 +1063,35 @@
     const t = clean(text); if (!t || !voiceOn()) return 0;
     const vf = voiceFor(pid);
     try {
-      if (TTS_NATIVE) window.prompt('hptts:' + vf.pitch.toFixed(2), t);
-      else { const u = new SpeechSynthesisUtterance(t); u.lang = 'ru-RU'; if (vf.v) u.voice = vf.v; u.pitch = vf.pitch; u.rate = vf.rate; speechSynthesis.speak(u); }
+      if (TTS_NATIVE) TTS_LAST = window.prompt('hptts:' + vf.pitch.toFixed(2), t);
+      else {
+        if (!RU_VOICES.length) loadVoices();
+        const u = new SpeechSynthesisUtterance(t); u.lang = 'ru-RU'; if (vf.v) u.voice = vf.v; u.pitch = vf.pitch; u.rate = vf.rate; u.volume = 1;
+        u.onerror = e => { TTS_LAST = 'error:' + (e && e.error); if (vf.v && e && e.error !== 'interrupted' && e.error !== 'canceled') { const u2 = new SpeechSynthesisUtterance(t); u2.lang = 'ru-RU'; TTS_Q.push(u2); speechSynthesis.speak(u2); } };
+        u.onstart = () => { TTS_LAST = 'ok'; };
+        TTS_Q.push(u); if (TTS_Q.length > 30) TTS_Q.shift();
+        try { speechSynthesis.resume(); } catch (e) { /* ignore */ }
+        speechSynthesis.speak(u);
+      }
     } catch (e) { return 0; }
     return Math.min(14000, 600 + t.length * 62);
+  }
+  let TTS_LAST = null; const TTS_Q = [];
+  function ttsCheck() {
+    const was = SAVE.settings.voice; SAVE.settings.voice = true; TTS_LAST = null;
+    say('gromov', 'Проверка связи. Детектив, вы меня слышите?');
+    SAVE.settings.voice = was;
+    setTimeout(() => {
+      let t;
+      if (TTS_NATIVE) {
+        t = TTS_LAST === '0' ? '✅ Синтезатор речи телефона принял фразу. Если голоса не слышно — проверьте громкость мультимедиа.' : TTS_LAST === '-1' ? '⚠️ Синтезатор речи телефона не готов. Откройте Настройки → Специальные возможности (или Язык и ввод) → Синтез речи: выберите «Синтезатор речи Google» и скачайте русский голос.' : '⚠️ Нет ответа от синтезатора речи. Установите последнюю версию HOME_POLICE.apk.';
+      } else if (TTS_WEB) {
+        loadVoices();
+        const all = speechSynthesis.getVoices();
+        t = `Русских голосов найдено: <b>${RU_VOICES.length}</b> из ${all.length}.${RU_VOICES.length ? '<br>' + RU_VOICES.slice(0, 6).map(v => esc(v.name)).join('<br>') : '<br>⚠️ В системе нет русского голоса. Windows: Параметры → Время и язык → Речь → «Добавить голоса» → Русский. В браузере Edge русские голоса есть сразу.'}${TTS_LAST && TTS_LAST.startsWith('error') ? '<br>Ошибка: ' + esc(TTS_LAST) : ''}`;
+      } else t = '⚠️ На этом устройстве озвучка недоступна. Для Android установите последнюю версию HOME_POLICE.apk.';
+      popup(`<h2>🗣️ Проверка озвучки</h2><p style="line-height:1.6">${t}</p>`);
+    }, 1500);
   }
   function ttsStop() { try { if (TTS_NATIVE) window.prompt('hptts-stop', ''); else if (TTS_WEB) speechSynthesis.cancel(); } catch (e) { /* ignore */ } }
   // ---------- РУКОВОДСТВО ----------
@@ -1277,6 +1302,7 @@
         <button class="mi" id="ranksB2">🎖️ Звания и помощники</button>
         <button class="mi" id="snd">${SAVE.settings.sound ? '🔊 Звук: включён' : '🔈 Звук: выключен'}</button>
         <button class="mi" id="musB">${musicWanted() ? '🎵 Музыка: включена' : '🎵 Музыка: выключена'}</button>
+        <button class="mi" id="voiceT">🎙️ Проверить озвучку</button>
         ${TTS_OK() ? `<button class="mi" id="voiceB">${voiceOn() ? '🗣️ Озвучка: включена' : '🤐 Озвучка: выключена'}</button>` : ''}
         <button class="mi" id="lo">👤 Сменить детектива</button>
         ${NATIVE ? '<button class="mi red" id="quit">⏻ Выйти из игры</button>' : ''}
@@ -1299,6 +1325,7 @@
     });
     $('#snd').onclick = () => { SAVE.settings.sound = !SAVE.settings.sound; persist(); screenTitle(); };
     const mb = $('#musB'); if (mb) mb.onclick = () => { SAVE.settings.music = !musicWanted(); persist(); if (SAVE.settings.music) musicStart(); else musicStop(); screenTitle(); setTimeout(() => { const m = $('#menuP'); if (m) m.style.display = ''; }, 0); };
+    const vt = $('#voiceT'); if (vt) vt.onclick = () => { $('#menuP').style.display = 'none'; ttsCheck(); };
     const vb = $('#voiceB'); if (vb) vb.onclick = () => { SAVE.settings.voice = !voiceOn(); persist(); if (SAVE.settings.voice) { C = null; say('gromov', 'Озвучка включена. Добро пожаловать в отдел, детектив.'); } screenTitle(); setTimeout(() => { const m = $('#menuP'); if (m) m.style.display = ''; }, 0); };
     $('#lo').onclick = logout;
     const rb = $('#ranksB'); if (rb) rb.onclick = () => popup(ranksHTML());

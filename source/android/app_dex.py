@@ -168,7 +168,9 @@ def classes():
     jp.inv_static((T_FLT, 'parseFloat', 'F', [T_STR]), [0]).move_result(0)
     jp.inv_virt((T_TTS, 'setPitch', 'I', ['F']), [1, 0])
     jp.const4(0, 1).const4(2, 0).const4(3, 0)
-    jp.inv_virt((T_TTS, 'speak', 'I', [T_CS, 'I', T_BUNDLE, T_STR]), [1, 8, 0, 2, 3])
+    jp.inv_virt((T_TTS, 'speak', 'I', [T_CS, 'I', T_BUNDLE, T_STR]), [1, 8, 0, 2, 3]).move_result(0)
+    jp.inv_static((T_STR, 'valueOf', T_STR, ['I']), [0]).move_result_obj(0)
+    jp.inv_virt((T_JPR, 'confirm', 'V', [T_STR]), [9, 0]).const4(0, 1).ret(0)
     jp.label('done').inv_virt((T_JPR, 'confirm', 'V', []), [9]).const4(0, 1).ret(0)
     jp.label('no').const4(0, 0).ret(0)
     chrome = {'name': CHR, 'super': T_WCC, 'access': 0x1, 'interfaces': [T_TTSL], 'fields': [('tts', T_TTS, 0x1)], 'methods': [

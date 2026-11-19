@@ -1,0 +1,10 @@
+Голоса персонажей HOME POLICE — нейросетевые голоса Piper (https://github.com/rhasspy/piper)
+
+dmitri.onnx, denis.onnx — голоса Piper ru_RU dmitri/denis medium; данные NabuCasa voice-datasets, лицензия CC0.
+irina.onnx  — голос Piper ru_RU irina medium; данные RHVoice (https://github.com/RHVoice/RHVoice).
+ruslan.onnx — голос Piper ru_RU ruslan medium; корпус RUSLAN (https://ruslan-corpus.github.io/), лицензия CC BY-NC-SA 4.0.
+
+tts.js / tts.wasm — sherpa-onnx (https://github.com/k2-fsa/sherpa-onnx), Apache-2.0.
+phon.js / phon.wasm / phon.data — piper-phonemize и espeak-ng (GPL-3.0), только русские данные.
+
+Файлы собраны скриптом source/tools/piper_build.py.

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>HOME POLICE</title><meta name="hp-version" content="9"><script>(function(){var V=9;window.HP_VERSION=V;
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>HOME POLICE</title><meta name="hp-version" content="10"><script>(function(){var V=10;window.HP_VERSION=V;
 if(navigator.userAgent.indexOf('; wv)')<0||window.__HP_BOOTED)return;
 try{var c=JSON.parse(localStorage.getItem('hp_game_cache')||'null');
 if(c&&c.ver>V&&c.html&&c.html.indexOf('name="hp-version" content="'+c.ver+'"')>0){window.__HP_SKIP=true;
@@ -324,6 +324,17 @@ textarea.notes{width:100%;min-height:200px;background:#0f141d;border:1px solid #
 .casecard .cic{position:absolute;right:14px;top:10px;font-size:28px}
 .casecard h3{padding-right:36px;font-size:20px}
 .casecard.tut:before{content:"ОБУЧЕНИЕ"}
+.bootbtns{display:flex;flex-direction:column;gap:10px;margin-top:22px}
+.bigbtn{display:flex;align-items:center;justify-content:center;gap:12px;width:100%;padding:16px 20px;border-radius:14px;border:1px solid rgba(255,220,150,.55);background:linear-gradient(180deg,#f7dd9d 0%,#d9a64a 55%,#a8762a 100%);color:#1a1206;font-size:19px;font-weight:800;letter-spacing:1px;cursor:pointer;box-shadow:0 8px 24px rgba(217,166,74,.35),inset 0 1px 0 rgba(255,255,255,.6);transition:transform .12s,box-shadow .2s;position:relative;overflow:hidden;text-transform:uppercase}
+.bigbtn:hover{transform:translateY(-1px);box-shadow:0 12px 30px rgba(217,166,74,.5),inset 0 1px 0 rgba(255,255,255,.6)}
+.bigbtn:active{transform:translateY(1px)}
+.bigbtn .bi{font-size:24px;line-height:1;text-transform:none}
+.bigbtn small{display:block;font-size:12px;font-weight:600;letter-spacing:0;text-transform:none;opacity:.75;margin-top:2px}
+.bigbtn:after{content:"";position:absolute;top:0;left:-60%;width:40%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.55),transparent);animation:shine 2.8s infinite}
+@keyframes shine{0%{left:-60%}60%,100%{left:130%}}
+.bigbtn.blue{background:linear-gradient(180deg,#8fd0ff 0%,#3f8fd8 55%,#235a9a 100%);border-color:rgba(160,210,255,.6);color:#04121f;box-shadow:0 8px 24px rgba(63,143,216,.35),inset 0 1px 0 rgba(255,255,255,.5)}
+.linkbtn{background:none;border:none;color:var(--mut);font-size:14px;cursor:pointer;padding:8px;text-decoration:underline;text-underline-offset:3px}
+.linkbtn:hover{color:#fff}
 </style></head><body><div id="fog"><i></i><i></i></div><div id="app"></div>
 <script>// ===== Портреты персонажей и «фотографии» =====
 (function (root) {
@@ -3146,7 +3157,7 @@ window.CASES.push({
     app.innerHTML = `<div class="title fade"><div class="logoimg">${BADGE_SVG}</div><h1 class="logo">HOME POLICE</h1><div class="sub">Версия ${cur}</div><div class="card" style="width:min(440px,92vw);margin-top:22px;text-align:center;padding:24px">
       <div id="bst" style="margin-top:22px;min-height:22px"><span class="spin"></span> Подключение к серверу…</div>
       <div style="height:8px;border-radius:6px;background:rgba(255,255,255,.08);margin:14px 0 4px;overflow:hidden"><div id="bpr" style="height:100%;width:0;background:var(--gold);transition:width .2s"></div></div>
-      <div id="bbt" class="row" style="justify-content:center;margin-top:18px;flex-wrap:wrap"></div></div></div>`;
+      <div id="bbt" class="bootbtns"></div></div></div>`;
     const st = (t, f) => { const e = $('#bst'); if (e) e.innerHTML = `<span class="spin"></span> ${esc(t)}`; const b = $('#bpr'); if (b) b.style.width = f == null ? '35%' : Math.round(f * 100) + '%'; };
     const res = await findUpdate(st);
     const bst = $('#bst'), bbt = $('#bbt'), bpr = $('#bpr'); if (!bst) return;
@@ -3154,18 +3165,18 @@ window.CASES.push({
       UPD_STATE = 'загружена версия ' + res.ver;
       bpr.style.width = '100%';
       bst.innerHTML = `🔄 Доступна новая версия <b>${res.ver}</b> (у вас ${cur}). Прогресс и профили сохранятся.`;
-      bbt.innerHTML = '<button class="btn gold" id="bup">⬇️ Обновить</button><button class="btn" id="bplay">Играть без обновления</button>';
+      bbt.innerHTML = `<button class="bigbtn blue" id="bup"><span class="bi">⬇️</span><span>Обновить<small>до версии ${res.ver} · займёт пару секунд</small></span></button><button class="linkbtn" id="bplay">Играть без обновления</button>`;
       $('#bup').onclick = () => { bst.innerHTML = '<span class="spin"></span> Перезапуск…'; setTimeout(() => location.reload(), 300); };
     } else if (res.state === 'none') {
       UPD_STATE = 'актуальная';
       bpr.style.width = '100%';
       bst.innerHTML = `✅ Установлена последняя версия (${cur}).`;
-      bbt.innerHTML = '<button class="btn gold" id="bplay">▶ Играть</button>';
+      bbt.innerHTML = '<button class="bigbtn" id="bplay"><span class="bi">▶</span><span>Играть</span></button>';
     } else {
       UPD_STATE = 'нет связи с сервером обновлений';
       bpr.style.width = '0';
       bst.innerHTML = '⚠️ Не удалось проверить обновления — нет связи с сервером. Можно играть в текущую версию.';
-      bbt.innerHTML = '<button class="btn gold" id="bplay">▶ Играть</button><button class="btn" id="bretry">↻ Повторить</button>';
+      bbt.innerHTML = '<button class="bigbtn" id="bplay"><span class="bi">▶</span><span>Играть</span></button><button class="linkbtn" id="bretry">↻ Проверить обновления ещё раз</button>';
       $('#bretry').onclick = screenBoot;
     }
     $('#bplay').onclick = () => { snd('click'); startGame(); };

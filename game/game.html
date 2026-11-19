@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>HOME POLICE</title><meta name="hp-version" content="3"><script>(function(){var V=3;window.HP_VERSION=V;
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>HOME POLICE</title><meta name="hp-version" content="4"><script>(function(){var V=4;window.HP_VERSION=V;
 if(navigator.userAgent.indexOf('; wv)')<0||window.__HP_BOOTED)return;
 try{var c=JSON.parse(localStorage.getItem('hp_game_cache')||'null');
 if(c&&c.ver>V&&c.html&&c.html.indexOf('name="hp-version" content="'+c.ver+'"')>0){window.__HP_SKIP=true;
@@ -1175,7 +1175,7 @@ window.CASES.push({
     const day = 1 + Math.floor(R() * 27), mon = Math.floor(R() * 12), wd = Math.floor(R() * 7);
     const dateS = `${day} ${MONTHS[mon]}`;
     const nextS = `${day + 1} ${MONTHS[mon]}`;
-    const tMin = 21 * 60 + 30 + Math.floor(R() * 37) * 5;
+    const tMin = 21 * 60 + 20 + Math.floor(R() * 37) * 2;
     const hm = m => { m = ((m % 1440) + 1440) % 1440; return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); };
     const T = hm(tMin), T1 = hm(tMin - 20), T2 = hm(tMin + 20);
     const dd = String(day).padStart(2, '0') + '.' + String(mon + 1).padStart(2, '0');
@@ -1198,7 +1198,7 @@ window.CASES.push({
       const p = Object.assign({
         id, first: fn, sur: sn, f, age,
         name: fn + ' ' + d2.nom, gen: d1.gen + ' ' + d2.gen, dat: d1.dat + ' ' + d2.dat, acc: d1.acc + ' ' + d2.acc, ins: d1.ins + ' ' + d2.ins,
-        fgen: d1.gen, fins: d1.ins, fdat: d1.dat,
+        fgen: d1.gen, fins: d1.ins, fdat: d1.dat, facc: d1.acc,
         role,
         pt: { skin: Math.floor(R() * 4), hair: pick(hairs), hairC: hcol, age: ageG, glasses: chance(.25), beard: !f && chance(.35) ? pick(['full', 'stubble', 'goatee', 'mustache']) : undefined, cloth: pick(['#2f3a4a', '#5b4a3a', '#2d2d3a', '#1f1f22', '#3a5a3a', '#6a2a2a', '#2a4a6a', '#5a3a6a', '#7a6a4a']), collar: pick(['suit', 'shirt', 'sweater', 'hoodie', 'jacket', 'scarf', 'vest']), bg: pick(['#4a5568', '#6b5a4a', '#4a6a5a', '#5a4a6a', '#6a6a5a', '#3a4a6a']), lips: f && chance(.6) },
       }, extra || {});
@@ -1366,7 +1366,7 @@ window.CASES.push({
       if (spouse) homePeople.push(spouse.id); else if (relative) homePeople.push(relative.id);
     }
     // контакт преступника
-    E('ev_contact', `Переписка ${V.fgen} и ${CU.fgen} в ${hm(tMin - 25)}`, '💬', 'Телефоны', alive ? `За несколько часов до ${crimeWord === 'кража' ? 'кражи' : 'пожара'} ${CU.name} выяснял${G(CU, '', 'а')}, когда ${V.first} уйдёт и кто останется в ${pl.prep}.` : `В ${hm(tMin - 25)} ${CU.name} написал${G(CU, '', 'а')}: «Нам надо поговорить. Сейчас приеду». ${V.first} ответил${G(V, '', 'а')}: «Жду».`);
+    E('ev_contact', `Переписка ${V.fgen} и ${CU.fgen} в ${hm(alive ? tMin - 290 : tMin - 25)}`, '💬', 'Телефоны', alive ? `За несколько часов до ${crimeWord === 'кража' ? 'кражи' : 'пожара'} ${CU.name} выяснял${G(CU, '', 'а')}, когда ${V.first} уйдёт и кто останется в ${pl.prep}.` : `В ${hm(tMin - 25)} ${CU.name} написал${G(CU, '', 'а')}: «Нам надо поговорить. Сейчас приеду». ${V.first} ответил${G(V, '', 'а')}: «Жду».`);
     // свидетели
     const plate2 = CU.car.plate.split(' ')[0] + ' ' + CU.car.plate.split(' ')[1][0];
     E('ev_witness', `Показания: ${W1.name}`, '👁️', 'Показания', `Около ${hm(tMin - 10)} к ${pl.dat} подъехала ${CU.car.color[0]} машина, похоже «${CU.car.model[1]}». Номер начинался на «${plate2}». Около ${hm(tMin + 12)} уехала.`);
@@ -1380,15 +1380,26 @@ window.CASES.push({
     if (crime === 'poison') buyEv = E('ev_buy', 'Подозрительная покупка', '🧪', 'Финансы', `Выписка ${CU.fgen}: за три дня — магазин «Хозтовары», «${poison.includes('крысиный') ? 'средство от грызунов' : poison.includes('антифриз') ? 'антифриз 5 л' : 'препарат по рецепту'}».`);
     // мотивы-переписки
     S.forEach(p => {
-      const txt = {
-        debt: `${p.first} просил${G(p, '', 'а')} у ${V.fgen} ${sumDebt} ₽ и получил${G(p, '', 'а')} отказ. «Ты не оставляешь мне выбора».`,
-        inherit: `${V.first} написал${G(V, '', 'а')} ${p.fdat}, что собирается переписать завещание. ${p.first}: «Ты не можешь так поступить!»`,
-        jealous: `${p.first}: «Я всё видел${G(p, '', 'а')}. Не ври мне». ${V.first}: «Ты всё не так понял${G(p, '', 'а')}».`,
-        business: `${p.first} требовал${G(p, '', 'а')} продать бизнес. ${V.first}: «Пока я жив${G(V, '', 'а')} — нет».`,
-        exposure: `${V.first}: «Проверил${G(V, '', 'а')} отчёты. Не хватает ${sumDebt} ₽. Завтра поговорим». ${p.first}: «Это ошибка, я всё объясню!»`,
-        revenge: `${V.first}: «Ты уволен${G(p, '', 'а')}». ${p.first}: «Ты ещё пожалеешь».`,
+      const g = G(V, '', 'а'), gp = G(p, '', 'а');
+      const mt = p.mt = {
+        debt: [['them', vp([`Мне очень нужно ${sumDebt}. Пожалуйста. Последний раз.`, `Выручи, прошу. ${sumDebt}, и я больше не попрошу.`, `Мне срочно нужно ${sumDebt}. Иначе всё, конец.`])], ['me', vp(['Нет. Ты не вернул' + gp + ' прошлое.', 'Хватит. Сначала верни старый долг.', 'Нет. Я больше не дам ни копейки.'])], ['them', vp(['Ты не оставляешь мне выбора.', 'Ну смотри. Сам' + G(V, '', 'а') + ' напросил' + G(V, 'ся', 'ась') + '.', 'Ладно. Запомню.']), 'MOT']],
+        inherit: [['me', vp(['Завтра еду к нотариусу. Перепишу завещание, я так решил' + g + '.', 'Я меняю завещание. Тебе там больше ничего не достанется.', 'Всё. Я передумал' + g + ' насчёт наследства. Нотариус уже в курсе.'])], ['them', vp(['Ты не можешь так поступить!', 'Это нечестно! Ты же обещал' + g + '!', 'Ты пожалеешь об этом решении.']), 'MOT']],
+        jealous: [['them', vp(['Я всё видел' + gp + '. Не ври мне.', 'Я знаю, с кем ты была вчера. Не отпирайся.'.replace('была', G(V, 'был', 'была')), 'Мне всё рассказали. Даже не начинай оправдываться.']), 'MOT'], ['me', vp(['Ты всё не так понял' + gp + '.', 'Это не то, что ты думаешь.', 'Успокойся, давай поговорим нормально.'])]],
+        business: [['them', vp(['Покупатель ждёт ответа. Ты срываешь сделку всей жизни.', 'Подпиши уже бумаги. Такой цены больше не будет.', 'Ты понимаешь, сколько мы теряем из-за твоего упрямства?'])], ['me', vp(['Пока я жив' + g + ' — нет.', 'Я сказал' + g + ' нет. Тема закрыта.', 'Не продам. Хоть каждый день пиши.']), 'MOT']],
+        exposure: [['me', vp([`Проверил${g} отчёты. Не хватает ${sumDebt} ₽. Завтра поговорим.`, `В кассе дыра на ${sumDebt} ₽. Объяснишь завтра — или объяснишь полиции.`, `Я нашл${G(V, 'ёл', 'а')} расхождение на ${sumDebt} ₽. Это ведь ты?`]), 'MOT'], ['them', vp(['Это ошибка! Я всё объясню.', 'Не надо полиции. Я верну, клянусь.', 'Ты не так поняла цифры.'.replace('поняла', G(V, 'понял', 'поняла'))])]],
+        revenge: [['me', vp(['Ты уволен' + gp + '. Расчёт у бухгалтера.', 'С понедельника можешь не приходить. Ты уволен' + gp + '.', 'Пропуск сдашь на вахте. Мы больше не работаем вместе.'])], ['them', vp(['Ты ещё пожалеешь.', 'Это тебе так не сойдёт.', 'Посмотрим, кто из нас пожалеет.']), 'MOT']],
       }[p.mot];
-      p.motEv = E('ev_mot_' + p.id, `Конфликт: ${p.name}`, '⚡', 'Телефоны', `Из телефона ${V.fgen}. ${txt}`);
+      const sum = {
+        debt: `${p.first} просил${G(p, '', 'а')} у ${V.fgen} ${sumDebt} ₽ и получил${G(p, '', 'а')} отказ.`,
+        inherit: `${V.first} написал${G(V, '', 'а')} ${p.fdat}, что меняет завещание.`,
+        jealous: `${p.first} ревнует ${V.facc} и не верит оправданиям.`,
+        business: `${p.first} требовал${G(p, '', 'а')} продать бизнес, ${V.first} отказал${G(V, '', 'а')}.`,
+        exposure: `${V.first} обнаружил${G(V, '', 'а')} недостачу ${sumDebt} ₽ и написал${G(V, '', 'а')} об этом ${p.fdat}.`,
+        revenge: `${V.first} уволил${G(V, '', 'а')} ${p.facc}.`,
+      }[p.mot];
+      const km = mt.find(m => m[2] === 'MOT');
+      p.motEv = E('ev_mot_' + p.id, `Конфликт: ${p.name}`, '⚡', 'Телефоны', `Из телефона ${V.fgen}. ${sum} ${km[0] === 'me' ? V.first : p.first}: «${km[1].replace(/[.!?]$/, '')}».`);
+      mt.forEach(m => { if (m[2] === 'MOT') m[2] = p.motEv; });
     });
     // вечерние сообщения невиновных жертве
     INN.forEach(p => E('ev_eve_' + p.id, `Сообщение ${p.fgen} вечером ${dateS}`, '💬', 'Телефоны', p.secret ? `${p.first} написал${G(p, '', 'а')} ${V.fdat}, что весь вечер будет дома.` : `${p.first} написал${G(p, '', 'а')} ${V.fdat}, что вечером будет в «${p.venue.n.split('«')[1]}.`));
@@ -1423,15 +1434,10 @@ window.CASES.push({
     const vchats = S.map(p => {
       const msgs = [];
       const d0 = `${String(Math.max(1, day - 2)).padStart(2, '0')}.${String(mon + 1).padStart(2, '0')}`;
-      const mt = {
-        debt: [['them', `Мне очень нужно ${sumDebt}. Пожалуйста. Последний раз.`], ['me', 'Нет. Ты не вернул' + G(p, '', 'а') + ' прошлое.'], ['them', 'Ты не оставляешь мне выбора.', p.motEv]],
-        inherit: [['me', 'Завтра еду к нотариусу. Перепишу завещание, я так решил' + G(V, '', 'а') + '.'], ['them', 'Ты не можешь так поступить!', p.motEv]],
-        jealous: [['them', 'Я всё видел' + G(p, '', 'а') + '. Не ври мне.', p.motEv], ['me', 'Ты всё не так понял' + G(p, '', 'а') + '.']],
-        business: [['them', 'Покупатель ждёт ответа. Ты срываешь сделку всей жизни.'], ['me', 'Пока я жив' + G(V, '', 'а') + ' — нет.', p.motEv]],
-        exposure: [['me', `Проверил${G(V, '', 'а')} отчёты. Не хватает ${sumDebt} ₽. Завтра поговорим.`, p.motEv], ['them', 'Это ошибка! Я всё объясню.']],
-        revenge: [['me', 'Ты уволен' + G(p, '', 'а') + '. Расчёт у бухгалтера.'], ['them', 'Ты ещё пожалеешь.', p.motEv]],
-      }[p.mot];
-      mt.forEach(m => msgs.push([d0 + ' ' + hm(600 + Math.floor(R() * 500)), m[0], m[1], m[2]]));
+      const mt = p.mt;
+      const mts = mt.map(() => 600 + Math.floor(R() * 500)).sort((a, b) => a - b);
+      mts.forEach((t, i) => { if (i && t <= mts[i - 1]) mts[i] = mts[i - 1] + 7; });
+      mt.forEach((m, i) => msgs.push([d0 + ' ' + hm(mts[i]), m[0], m[1], m[2]]));
       if (p === CU) {
         if (alive) {
           msgs.push([dd + ' ' + hm(tMin - 290), 'them', `Ты сегодня до скольки ${ST.id === 'cottage' ? 'дома' : 'на месте'}? И кто-то ещё останется?`, 'ev_contact']);
@@ -1603,9 +1609,9 @@ window.CASES.push({
 
     // ---------- действия: задержание ----------
     const actions = {};
-    const why = 'Громов: «Оснований для задержания нет. Нужны доказательства: контакт с жертвой перед преступлением и ещё хотя бы одна улика, которая ставит человека на место — свидетель, оплата картой рядом или ложное алиби».';
+    const why = 'Громов: «Оснований для задержания нет. Нужны доказательства: контакт с жертвой перед преступлением и ещё хотя бы одна улика, которая ставит человека на место — оплата картой рядом или ложное алиби».';
     S.forEach(p => {
-      actions['det_' + p.id] = { label: `Задержать: ${p.name}`, person: p.id, req: p === CU ? ['ev_contact', ['ev_witness', 'ev_cbank', 'ev_friend_lie']] : ['__never'], grounds: [['ev_contact'], ['ev_witness', 'ev_cbank', 'ev_friend_lie']], why: p !== CU && has0('alibi_' + p.id) ? why : why, done: p === CU ? ['detained'] : ['__never'], give: p === CU ? ['ev_cphone', 'ev_sample'] : [], note: `${p.name} задержан${G(p, '', 'а')}.` };
+      actions['det_' + p.id] = { label: `Задержать: ${p.name}`, person: p.id, req: p === CU ? ['ev_contact', ['ev_cbank', 'ev_friend_lie']] : ['__never'], grounds: p === CU ? [['ev_contact'], ['ev_cbank', 'ev_friend_lie']] : [['ev_eve_' + p.id], ['__none']], why: p !== CU && has0('alibi_' + p.id) ? why : why, done: p === CU ? ['detained'] : ['__never'], give: p === CU ? ['ev_cphone', 'ev_sample'] : [], note: `${p.name} задержан${G(p, '', 'а')}.` };
     });
     function has0() { return false; }
 
@@ -1616,7 +1622,7 @@ window.CASES.push({
       { id: 'm_start', req: [], delay: 1, from: 'gromov', call: true, lines: [
         ['Громов', `Новое дело. ${{ murder: 'Убийство', poison: 'Отравление', theft: 'Кража', arson: 'Поджог' }[crime]}: ${pl.nom}, ${addr}. ${alive ? 'Пострадавш' + G(V, 'ий', 'ая') + ' — ' : 'Жертва — '}${V.name}, ${V.role}.`],
         ['Громов', alive ? `${V.first} ждёт тебя. Поговори, узнай, у кого был доступ.` : `${rp.name} ${crime === 'murder' ? G(rp, 'нашёл', 'нашла') + ' тело' : 'вызвал' + G(rp, '', 'а') + ' помощь'}. Начни с места происшествия.`],
-        ['Громов', 'Выезжай. Улики — Соколовой, телефоны — Ким, выписки — через банк. И помни: в Туманске все говорят правду. Ищи, где правда не сходится.'],
+        ['Громов', 'Выезжай. Улики — Соколовой, телефоны — Ким, выписки — через банк. И помни: врать тебе будут многие, и не только виновный. У каждого свои секреты — ищи, где слова не сходятся с фактами, и выясняй почему.'],
         ['>', 'Понял. Выезжаю.'],
       ] },
       { id: 'm_lab', req: ['v_scene', '!lab_any'], delay: 40, from: 'vera', text: 'Привет! Всё, что найдёшь на месте, отправляй мне через «Улики» → «На экспертизу».' },
@@ -2145,6 +2151,19 @@ window.CASES.push({
     const rows = [['Дата рождения', d.dob], ['Адрес', d.addr], ['Место работы', d.work], ['Телефон', d.phone], ['Семья', d.family], ['Судимости', d.record], ['Транспорт', d.car], ['Счета', d.acc]];
     return `<table>${rows.map(([a, b]) => `<tr><td>${a}</td><td>${esc(b)}</td></tr>`).join('')}</table>`;
   }
+  function detainWhy(p, okA, okB, picks0) {
+    const sx = p.f ? 'ась' : 'ся', bl = p.f ? 'была' : 'был';
+    const al = has('alibi_' + pid0(p));
+    let t;
+    if (!okA && !okB) t = `Из твоих бумаг не видно ни что ${esc(p.name)} связывал${sx} с потерпевшей стороной перед преступлением, ни что ${bl} на месте. Посмотри, какие улики касаются именно этого человека.`;
+    else if (!okA) t = `Что ${esc(p.name)} ${bl} рядом с местом — допустим. Но где связь с потерпевшей стороной перед преступлением? Переписка, звонок — что-то, где фигурирует именно ${p.f ? 'она' : 'он'}.`;
+    else if (!okB) t = `Контакт с потерпевшей стороной — вижу. Но общаться — не преступление. Что доказывает, что ${p.f ? 'она' : 'он'} ${p.f ? 'была' : 'был'} на месте в тот вечер? Оплата рядом, ложное алиби?`;
+    else t = `Бумаги вроде есть, но картинка не складывается. Проверь ещё раз алиби и показания — что-то здесь не так.`;
+    if (!okB && picks0.includes('ev_witness')) t += ' Свидетель видел только машину — по ней одной человека на место не поставишь.';
+    if (al) t += ` И учти: ${p.f ? 'её' : 'его'} алиби подтверждено.`;
+    return t;
+  }
+  function pid0(p) { return Object.keys(C.people).find(k => C.people[k] === p); }
   function suspects() { return C.accuse.questions[0].opts.map(o => o[0]); }
   function requestDetain(pid) {
     const p = C.people[pid];
@@ -2152,21 +2171,25 @@ window.CASES.push({
     const ov = overlay('<div class="modal" id="dm" style="width:min(900px,94vw)"></div>');
     const draw = () => {
       const m = $('#dm');
+      const pk0 = m.querySelector('.picker'), sc = pk0 ? pk0.scrollTop : 0, msc = m.scrollTop;
       m.innerHTML = `<div class="tag red">ЗАПРОС НА ЗАДЕРЖАНИЕ</div><h2 style="margin-top:8px">${esc(p.name)}</h2>
-        <p class="hint" style="line-height:1.55">Громов подпишет задержание, только если улики докажут две вещи: <b>1)</b> человек связывался с жертвой незадолго до преступления; <b>2)</b> он был на месте или лжёт о том, где был. Выберите до 4 улик. Каждый необоснованный запрос снижает итоговую оценку.</p>
+        <p class="hint" style="line-height:1.55">Громов подпишет задержание, только если улики докажут две вещи: <b>1)</b> именно этот человек связывался с потерпевшей стороной незадолго до преступления (переписка, звонок); <b>2)</b> именно его можно поставить на место преступления (оплата картой рядом, разоблачённое ложное алиби, опознание). Ложь на допросе сама по себе — не основание. Выберите до 4 улик. Каждый отклонённый запрос снижает итоговую оценку.</p>
         <div class="picker">${S.ev.map(id => `<div class="ev ${picks.includes(id) ? 'sel' : ''}" data-e="${id}"><div class="i">${C.evidence[id].icon}</div><div><b>${esc(C.evidence[id].name)}</b><small>${esc(C.evidence[id].desc)}</small></div></div>`).join('')}</div>
         <div class="row"><span class="hint" style="margin-right:auto">Выбрано: ${picks.length}/4${S.badDetain ? ` · отклонённых запросов: ${S.badDetain}` : ''}</span><button class="btn" id="dc">Отмена</button><button class="btn red" id="dg">🚔 Отправить Громову</button></div>`;
+      const pk1 = m.querySelector('.picker'); if (pk1) pk1.scrollTop = sc; m.scrollTop = msc;
       m.querySelectorAll('[data-e]').forEach(d => d.onclick = () => { const id = d.dataset.e; if (picks.includes(id)) picks = picks.filter(x => x !== id); else if (picks.length < 4) picks.push(id); draw(); });
       m.querySelector('#dc').onclick = closeOv;
       m.querySelector('#dg').onclick = () => {
         if (!picks.length) { toast('Выберите улики-основания', 'err'); return; }
         const a = Object.values(C.actions).find(x => x.person === pid);
-        const ok = a && req(a.req) && (a.grounds || []).every(g => g.some(e => picks.includes(e)));
+        const gr = (a && a.grounds) || [[], []];
+        const okA = !!(gr[0] && gr[0].some(e => picks.includes(e))), okB = !!(gr[1] && gr[1].some(e => picks.includes(e)));
+        const ok = a && req(a.req) && gr.every(g => g.some(e => picks.includes(e)));
         closeOv();
         if (!ok) {
           S.badDetain = (S.badDetain || 0) + 1; persist(); snd('err');
           journal(`Громов отклонил запрос на задержание: ${p.name}.`);
-          popup(`<div style="display:flex;gap:14px;align-items:center"><div style="width:64px;flex:none;border-radius:8px;overflow:hidden">${pt('gromov')}</div><h2 style="margin:0">Громов: «Не подпишу»</h2></div><p style="line-height:1.6;margin-top:12px">«Не убедил. Из твоих бумаг не следует, что ${esc(p.name)} связывал${p.f ? 'ась' : 'ся'} с жертвой перед преступлением и ${p.f ? 'была' : 'был'} на месте. Либо улик не хватает, либо ты ищешь не там. Докопайся до правды — потом приходи».</p>`);
+          popup(`<div style="display:flex;gap:14px;align-items:center"><div style="width:64px;flex:none;border-radius:8px;overflow:hidden">${pt('gromov')}</div><h2 style="margin:0">Громов: «Не подпишу»</h2></div><p style="line-height:1.6;margin-top:12px">«Не убедил. ${detainWhy(p, okA, okB, picks)}»</p>`);
           return;
         }
         setFlags(a.done); (a.give || []).forEach(g => give(g));
@@ -2499,7 +2522,7 @@ window.CASES.push({
   function callGromov() {
     const t = C.tasks.find(x => req(x.req) && !req(x.done));
     const line = t ? `Что дальше? По-моему, сейчас главное: ${t.text.charAt(0).toLowerCase() + t.text.slice(1)}.` : 'Всё, что нужно, у тебя есть. Предъявляй обвинение.';
-    incomingCallOut([['Громов', 'Слушаю.'], ['>', 'Комиссар, нужен совет.'], ['Громов', line], ['Громов', 'И помни: в этом городе все говорят правду. Ищи, где правда не сходится с фактами.']]);
+    incomingCallOut([['Громов', 'Слушаю.'], ['>', 'Комиссар, нужен совет.'], ['Громов', line], ['Громов', t && t.id === 'detain' ? 'Для задержания мне нужны две вещи по одному человеку: его контакт с потерпевшей стороной перед преступлением и улика, которая ставит его на место. Соврать на допросе может кто угодно — у каждого свои секреты. Проверь, почему человек врёт.' : 'И помни: врать могут не только виновные. Ищи, где слова не сходятся с фактами, и выясняй почему.']]);
   }
   function incomingCallOut(lines) {
     overlay(`<div class="call"><div class="ph">${pt('gromov')}</div><h3>Комиссар Громов</h3><div class="st">Исходящий звонок</div><div id="cl" class="calllog"></div><div id="cb"></div></div>`);
@@ -2521,6 +2544,7 @@ window.CASES.push({
     const ov = overlay('<div class="modal" id="acc" style="width:min(860px,94vw)"></div>');
     const draw = () => {
       const m = $('#acc');
+      const pk0 = m.querySelector('.picker'), sc = pk0 ? pk0.scrollTop : 0, msc = m.scrollTop;
       if (step < A.questions.length) {
         const q = A.questions[step];
         m.innerHTML = `<div class="tag red">ОБВИНИТЕЛЬНОЕ ЗАКЛЮЧЕНИЕ · ${step + 1}/${A.questions.length + 1}</div><h2 style="margin-top:8px">${esc(q.q)}</h2><div class="quiz">${q.opts.map(([k, l]) => `<label><input type="radio" name="q" value="${k}" ${ans[step] === k ? 'checked' : ''}>${esc(l)}</label>`).join('')}</div>
@@ -2530,7 +2554,8 @@ window.CASES.push({
         m.innerHTML = `<div class="tag red">ОБВИНИТЕЛЬНОЕ ЗАКЛЮЧЕНИЕ · ${step + 1}/${A.questions.length + 1}</div><h2 style="margin-top:8px">Какие улики вы передадите в суд?</h2><p class="hint">Выберите до 4 самых сильных доказательств. Суд оценит каждую.</p>
           <div class="picker">${S.ev.map(id => `<div class="ev ${picks.includes(id) ? 'sel' : ''}" data-e="${id}"><div class="i">${C.evidence[id].icon}</div><div><b>${esc(C.evidence[id].name)}</b><small>${esc(C.evidence[id].desc)}</small></div></div>`).join('')}</div>
           <div class="row"><span class="hint" style="margin-right:auto">Выбрано: ${picks.length}/4</span><button class="btn" id="pv">← Назад</button><button class="btn red" id="go">⚖️ Передать дело в суд</button></div>`;
-        m.querySelectorAll('[data-e]').forEach(d => d.onclick = () => { const id = d.dataset.e; if (picks.includes(id)) picks = picks.filter(x => x !== id); else if (picks.length < 4) picks.push(id); draw(); });
+        const pk1 = m.querySelector('.picker'); if (pk1) pk1.scrollTop = sc; m.scrollTop = msc;
+      m.querySelectorAll('[data-e]').forEach(d => d.onclick = () => { const id = d.dataset.e; if (picks.includes(id)) picks = picks.filter(x => x !== id); else if (picks.length < 4) picks.push(id); draw(); });
         m.querySelector('#go').onclick = () => { if (!picks.length) { toast('Выберите хотя бы одну улику', 'err'); return; } judge(ans, picks); };
       }
       const cx = m.querySelector('#cx'); if (cx) cx.onclick = closeOv;

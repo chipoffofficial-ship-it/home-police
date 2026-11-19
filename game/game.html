@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>HOME POLICE</title><meta name="hp-version" content="17"><script>(function(){var V=17;window.HP_VERSION=V;
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>HOME POLICE</title><meta name="hp-version" content="18"><script>(function(){var V=18;window.HP_VERSION=V;
 if(navigator.userAgent.indexOf('; wv)')<0||window.__HP_BOOTED)return;
 try{var c=JSON.parse(localStorage.getItem('hp_game_cache')||'null');
 if(c&&c.ver>V&&c.html&&c.html.indexOf('name="hp-version" content="'+c.ver+'"')>0){window.__HP_SKIP=true;
@@ -1943,7 +1943,7 @@ window.CASES.push({
     writeStore();
     screenTitle();
   }
-  function logout() { if (USER) writeStore(); USER = null; STORE.auto = null; writeStore(); screenAuth(); }
+  function logout() { musicStop(); if (USER) writeStore(); USER = null; STORE.auto = null; writeStore(); screenAuth(); }
   // ---------- экран входа и регистрации ----------
   function screenAuth(mode) {
     S = null; C = null; clearInterval(tickT);
@@ -1997,6 +1997,74 @@ window.CASES.push({
   }
   // ---------- звук ----------
   let AC = null;
+  // ---------- ФОНОВАЯ МУЗЫКА (генерируется на лету: тихий нуар-эмбиент) ----------
+  const MUS = { on: false, timer: null, bar: 0, master: null, next: 0 };
+  const musicWanted = () => !SAVE || !SAVE.settings || SAVE.settings.music !== false;
+  function musicStart() {
+    if (MUS.on || !musicWanted()) return;
+    try {
+      AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+      if (AC.state === 'suspended') AC.resume();
+      if (!MUS.master) {
+        MUS.master = AC.createGain(); MUS.master.gain.value = 0;
+        const lp = AC.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1800; lp.Q.value = 0.3;
+        // мягкое «эхо» для простора
+        const dl = AC.createDelay(1.5), fb = AC.createGain(), wet = AC.createGain();
+        dl.delayTime.value = 0.42; fb.gain.value = 0.32; wet.gain.value = 0.35;
+        MUS.bus = AC.createGain();
+        MUS.bus.connect(lp); lp.connect(MUS.master); lp.connect(dl); dl.connect(fb); fb.connect(dl); dl.connect(wet); wet.connect(MUS.master);
+        MUS.master.connect(AC.destination);
+        // тихий дождь за окном
+        const len = AC.sampleRate * 2, buf = AC.createBuffer(1, len, AC.sampleRate), d = buf.getChannelData(0);
+        for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * 0.5;
+        const ns = AC.createBufferSource(); ns.buffer = buf; ns.loop = true;
+        const bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 2400; bp.Q.value = 0.6;
+        const rg = AC.createGain(); rg.gain.value = 0.05;
+        ns.connect(bp); bp.connect(rg); rg.connect(MUS.master); ns.start();
+      }
+      MUS.on = true;
+      MUS.master.gain.cancelScheduledValues(AC.currentTime);
+      MUS.master.gain.setTargetAtTime(0.55, AC.currentTime, 2.5);
+      MUS.next = AC.currentTime + 0.3;
+      const tick = () => { while (MUS.next < AC.currentTime + 1.5) { musicBar(MUS.next); MUS.next += 8; } };
+      tick(); MUS.timer = setInterval(tick, 500);
+    } catch (e) { MUS.on = false; }
+  }
+  function musicStop() {
+    if (!MUS.on) return;
+    MUS.on = false; clearInterval(MUS.timer);
+    try { MUS.master.gain.cancelScheduledValues(AC.currentTime); MUS.master.gain.setTargetAtTime(0, AC.currentTime, 0.6); } catch (e) { /* ignore */ }
+  }
+  // Am — Fmaj7 — Dm9 — E7(b9): медленная минорная гармония
+  const CHORDS = [[57, 60, 64, 67], [53, 57, 60, 64], [50, 57, 60, 64], [52, 56, 59, 62]];
+  const BASS = [45, 41, 38, 40];
+  const SCALE = [69, 72, 74, 76, 79, 81, 84];
+  const hz = n => 440 * Math.pow(2, (n - 69) / 12);
+  function voice(f, t, dur, vol, type, det) {
+    const o = AC.createOscillator(), g = AC.createGain();
+    o.type = type; o.frequency.value = f; if (det) o.detune.value = det;
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + dur * 0.35); g.gain.linearRampToValueAtTime(vol * 0.8, t + dur * 0.7); g.gain.linearRampToValueAtTime(0, t + dur);
+    o.connect(g); g.connect(MUS.bus); o.start(t); o.stop(t + dur + 0.05);
+  }
+  function pluck(f, t, vol) {
+    const o = AC.createOscillator(), g = AC.createGain();
+    o.type = 'triangle'; o.frequency.value = f;
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0005, t + 2.6);
+    o.connect(g); g.connect(MUS.bus); o.start(t); o.stop(t + 2.7);
+  }
+  function musicBar(t) {
+    const k = MUS.bar % 4; MUS.bar++;
+    CHORDS[k].forEach(n => { voice(hz(n), t, 8.6, 0.018, 'sawtooth', -6); voice(hz(n), t, 8.6, 0.018, 'triangle', 5); });
+    voice(hz(BASS[k] - 12), t, 8.2, 0.07, 'sine');
+    // редкие ноты «пианино», как капли
+    const notes = 2 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < notes; i++) if (Math.random() < 0.8) {
+      const pool = SCALE.filter(n => CHORDS[k].some(c => (n - c) % 12 === 0) || Math.random() < 0.35);
+      pluck(hz(pool[Math.floor(Math.random() * pool.length)]), t + 0.8 + i * (1.4 + Math.random() * 1.2), 0.045);
+    }
+  }
+  document.addEventListener('visibilitychange', () => { try { if (!AC) return; if (document.hidden) AC.suspend(); else AC.resume(); } catch (e) { /* ignore */ } });
+  ['pointerdown', 'keydown', 'touchstart'].forEach(ev => document.addEventListener(ev, () => { if (!MUS.on && musicWanted() && USER) musicStart(); }, { passive: true }));
   function snd(k) {
     if (!SAVE.settings.sound) return;
     try {
@@ -2645,7 +2713,8 @@ window.CASES.push({
     (function next() {
       if (i >= parsed.length) { if (lock) lock.style.pointerEvents = ''; drawTopics(pid); return; }
       log.appendChild(lineEl(parsed[i][0], parsed[i][1], pid)); log.scrollTop = log.scrollHeight;
-      i++; setTimeout(next, parsed[i - 1][0] === 'me' ? 250 : 520);
+      const sp = parsed[i][0] === 'p' ? say(pid, parsed[i][1]) : 0;
+      i++; setTimeout(next, sp ? Math.max(520, sp) : parsed[i - 1][0] === 'me' ? 250 : 520);
     })();
   }
   function drawTopics(pid) {
@@ -2746,7 +2815,8 @@ window.CASES.push({
         const d = document.createElement('div'); d.className = 'ln ' + (w === '>' ? 'me' : 'p'); d.style.maxWidth = '100%'; d.style.fontSize = '14px';
         d.innerHTML = w === '>' ? esc(t) : `<b style="color:var(--gold);font-size:12px;display:block">${esc(w)}</b>${esc(t)}`;
         cl.appendChild(d); cl.scrollTop = cl.scrollHeight; i++;
-        setTimeout(next, 900);
+        const sp = w === '>' ? 0 : say(m.from, t);
+        setTimeout(next, Math.max(900, sp));
       })();
     };
     $('#acc').onclick = accept;
@@ -2775,7 +2845,9 @@ window.CASES.push({
       const [w, t] = lines[i];
       const d = document.createElement('div'); d.className = 'ln ' + (w === '>' ? 'me' : 'p'); d.style.maxWidth = '100%'; d.style.fontSize = '14px';
       d.innerHTML = w === '>' ? esc(t) : `<b style="color:var(--gold);font-size:12px;display:block">${esc(w)}</b>${esc(t)}`;
-      cl.appendChild(d); i++; setTimeout(next, 800);
+      cl.appendChild(d); i++;
+      const sp = w === '>' ? 0 : say('gromov', t);
+      setTimeout(next, Math.max(800, sp));
     })();
   }
 
@@ -2849,7 +2921,43 @@ window.CASES.push({
     document.body.appendChild(d);
     return d;
   }
-  function closeOv() { document.querySelectorAll('.ov').forEach(o => o.remove()); }
+  function closeOv() { ttsStop(); document.querySelectorAll('.ov').forEach(o => o.remove()); }
+  // ---------- ОЗВУЧКА ----------
+  const TTS_WEB = typeof window.speechSynthesis !== 'undefined' && typeof window.SpeechSynthesisUtterance !== 'undefined' && !/; wv\)/.test(navigator.userAgent);
+  const TTS_NATIVE = /; wv\)/.test(navigator.userAgent) && /HPTTS/.test(navigator.userAgent);
+  const TTS_OK = () => TTS_NATIVE || TTS_WEB;
+  const voiceOn = () => TTS_OK() && (!SAVE || !SAVE.settings || SAVE.settings.voice !== false);
+  let RU_VOICES = [];
+  function loadVoices() { if (!TTS_WEB) return; RU_VOICES = speechSynthesis.getVoices().filter(v => /^ru/i.test(v.lang)); }
+  if (TTS_WEB) { loadVoices(); try { speechSynthesis.onvoiceschanged = loadVoices; } catch (e) { /* ignore */ } }
+  function hashStr(t) { let h = 7; for (let i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) >>> 0; return h; }
+  function voiceFor(pid) {
+    const P = (C && C.people && C.people[pid]) || {};
+    const f = !!P.f, h = hashStr(pid || 'x');
+    const pitch = f ? 1.08 + (h % 20) / 100 : 0.78 + (h % 20) / 100;
+    const rate = P.age > 62 ? 0.9 : P.age && P.age < 28 ? 1.1 : 1.0;
+    let v = null;
+    if (RU_VOICES.length) {
+      const fem = RU_VOICES.filter(x => /svetlana|dariya|daria|irina|ekaterina|milena|anna|alena|elena|female|жен/i.test(x.name));
+      const mal = RU_VOICES.filter(x => /dmitry|pavel|yuri|maxim|male|муж/i.test(x.name) && !/female/i.test(x.name));
+      const pool = (f ? fem : mal).length ? (f ? fem : mal) : RU_VOICES;
+      const nat = pool.filter(x => /natural|online/i.test(x.name));
+      const pp = nat.length ? nat : pool;
+      v = pp[h % pp.length];
+    }
+    return { v, pitch, rate };
+  }
+  function clean(t) { return String(t).replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{FE0F}\u{200D}]/gu, '').replace(/[«»]/g, '"').trim(); }
+  function say(pid, text) {
+    const t = clean(text); if (!t || !voiceOn()) return 0;
+    const vf = voiceFor(pid);
+    try {
+      if (TTS_NATIVE) window.prompt('hptts:' + vf.pitch.toFixed(2), t);
+      else { const u = new SpeechSynthesisUtterance(t); u.lang = 'ru-RU'; if (vf.v) u.voice = vf.v; u.pitch = vf.pitch; u.rate = vf.rate; speechSynthesis.speak(u); }
+    } catch (e) { return 0; }
+    return Math.min(14000, 600 + t.length * 62);
+  }
+  function ttsStop() { try { if (TTS_NATIVE) window.prompt('hptts-stop', ''); else if (TTS_WEB) speechSynthesis.cancel(); } catch (e) { /* ignore */ } }
   // ---------- РУКОВОДСТВО ----------
   const GUIDE = [
     ['🎯 Цель', [
@@ -3057,6 +3165,8 @@ window.CASES.push({
         <button class="mi" id="guideB">📖 Как играть</button>
         <button class="mi" id="ranksB2">🎖️ Звания и помощники</button>
         <button class="mi" id="snd">${SAVE.settings.sound ? '🔊 Звук: включён' : '🔈 Звук: выключен'}</button>
+        <button class="mi" id="musB">${musicWanted() ? '🎵 Музыка: включена' : '🎵 Музыка: выключена'}</button>
+        ${TTS_OK() ? `<button class="mi" id="voiceB">${voiceOn() ? '🗣️ Озвучка: включена' : '🤐 Озвучка: выключена'}</button>` : ''}
         <button class="mi" id="lo">👤 Сменить детектива</button>
         ${NATIVE ? '<button class="mi red" id="quit">⏻ Выйти из игры</button>' : ''}
         <div class="mver">Версия ${window.HP_VERSION || 1} · ${NATIVE || WV ? (UPD_STATE || '—') : 'онлайн'}</div>
@@ -3077,6 +3187,8 @@ window.CASES.push({
       });
     });
     $('#snd').onclick = () => { SAVE.settings.sound = !SAVE.settings.sound; persist(); screenTitle(); };
+    const mb = $('#musB'); if (mb) mb.onclick = () => { SAVE.settings.music = !musicWanted(); persist(); if (SAVE.settings.music) musicStart(); else musicStop(); screenTitle(); setTimeout(() => { const m = $('#menuP'); if (m) m.style.display = ''; }, 0); };
+    const vb = $('#voiceB'); if (vb) vb.onclick = () => { SAVE.settings.voice = !voiceOn(); persist(); if (SAVE.settings.voice) { C = null; say('gromov', 'Озвучка включена. Добро пожаловать в отдел, детектив.'); } screenTitle(); setTimeout(() => { const m = $('#menuP'); if (m) m.style.display = ''; }, 0); };
     $('#lo').onclick = logout;
     const rb = $('#ranksB'); if (rb) rb.onclick = () => popup(ranksHTML());
     const rb2 = $('#ranksB2'); if (rb2) rb2.onclick = () => popup(ranksHTML());

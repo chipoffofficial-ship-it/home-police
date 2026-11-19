@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>HOME POLICE</title><meta name="hp-version" content="28"><script>(function(){var V=28;window.HP_VERSION=V;
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>HOME POLICE</title><meta name="hp-version" content="29"><script>(function(){var V=29;window.HP_VERSION=V;
 if(navigator.userAgent.indexOf('; wv)')<0||window.__HP_BOOTED)return;
 try{var c=JSON.parse(localStorage.getItem('hp_game_cache')||'null');
 if(c&&c.ver>V&&c.html&&c.html.indexOf('name="hp-version" content="'+c.ver+'"')>0){window.__HP_SKIP=true;
@@ -3693,13 +3693,13 @@ window.CASES.push({
   function spd(t) { return Math.max(3, Math.ceil(t * (perk('fast') ? 0.5 : 1))); }
   function ranksHTML() {
     const xp = profXP(), cur = rankOf(xp), nx = RANKS.find(r => r.xp > xp);
-    return `<h2>🎖️ Звания и помощники</h2><p class="hint">Очки дают за каждое раскрытое дело: оценка суда + 20. Сейчас: <b>${xp}</b>${nx ? ` · до звания «${esc(nx.n)}» — ${nx.xp - xp}` : ' · высшее звание'}.</p>
+    return `<h2>🎖️ Звания и помощники</h2><p class="hint">Помощники с прошлых званий остаются с вами — новые добавляются к ним. Очки дают за каждое раскрытое дело: оценка суда + 20. Сейчас: <b>${xp}</b>${nx ? ` · до звания «${esc(nx.n)}» — ${nx.xp - xp}` : ' · высшее звание'}.</p>
       ${nx ? `<div style="height:8px;border-radius:6px;background:rgba(255,255,255,.08);margin:6px 0 14px;overflow:hidden"><div style="height:100%;width:${Math.round((xp - cur.xp) / (nx.xp - cur.xp) * 100)}%;background:var(--gold)"></div></div>` : ''}
       ${RANKS.map(r => `<div class="card" style="margin-bottom:8px;${xp >= r.xp ? '' : 'opacity:.5'};${r === cur ? 'border-color:var(--gold)' : ''}"><b>${r.ic} ${esc(r.n)}</b> <span class="hint">· ${r.xp} оч.</span>${xp >= r.xp ? ' <span class="tag green">получено</span>' : ' <span class="tag">🔒</span>'}${r.pn ? `<div style="margin-top:4px"><b>${r.pn}</b> — <span class="hint">${esc(r.pd)}</span></div>` : ''}</div>`).join('')}`;
   }
   function rankUp(r) {
     const box = document.createElement('div'); box.className = 'ov'; box.style.zIndex = 80;
-    box.innerHTML = `<div class="modal" style="width:min(520px,92vw);text-align:center"><div style="font-size:54px">${r.ic}</div><div class="tag gold">ПОВЫШЕНИЕ</div><h2 style="margin-top:8px">Новое звание: ${esc(r.n)}</h2><p>Громов: «Заслуженно. Поздравляю».</p>${r.pn ? `<div class="card" style="margin-top:10px;text-align:left"><b>Открыто: ${r.pn}</b><div class="hint" style="margin-top:4px">${esc(r.pd)}</div></div>` : ''}<div class="row" style="justify-content:center"><button class="btn gold" id="rux">Служу закону!</button></div></div>`;
+    box.innerHTML = `<div class="modal" style="width:min(520px,92vw);text-align:center"><div style="font-size:54px">${r.ic}</div><div class="tag gold">ПОВЫШЕНИЕ</div><h2 style="margin-top:8px">Новое звание: ${esc(r.n)}</h2><p>Громов: «Заслуженно. Поздравляю».</p>${r.pn ? `<div class="card" style="margin-top:10px;text-align:left"><b>Открыто: ${r.pn}</b><div class="hint" style="margin-top:4px">${esc(r.pd)}</div></div>` : ''}${(() => { const old = RANKS.filter(x => x.pn && x.xp < r.xp); return old.length ? `<div class="hint" style="margin-top:8px;text-align:left">Остаются с вами: ${old.map(x => x.pn).join(', ')}.</div>` : ''; })()}<div class="row" style="justify-content:center"><button class="btn gold" id="rux">Служу закону!</button></div></div>`;
     document.body.appendChild(box); snd('win');
     box.querySelector('#rux').onclick = () => { box.remove(); if ($('.desk')) renderDesk(); };
   }

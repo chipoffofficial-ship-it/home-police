@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>HOME POLICE</title><meta name="hp-version" content="4"><script>(function(){var V=4;window.HP_VERSION=V;
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>HOME POLICE</title><meta name="hp-version" content="5"><script>(function(){var V=5;window.HP_VERSION=V;
 if(navigator.userAgent.indexOf('; wv)')<0||window.__HP_BOOTED)return;
 try{var c=JSON.parse(localStorage.getItem('hp_game_cache')||'null');
 if(c&&c.ver>V&&c.html&&c.html.indexOf('name="hp-version" content="'+c.ver+'"')>0){window.__HP_SKIP=true;
@@ -219,7 +219,12 @@ input,textarea{font:inherit}
 .topic:hover{border-color:var(--gold)}
 .topic.done{opacity:.5}
 .topic.new{border-color:#6a5420;background:#2a2516}
-.picker{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;max-height:56vh;overflow:auto;margin-top:10px}
+.picker{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;max-height:52vh;overflow:auto;margin-top:8px;overscroll-behavior:contain;align-content:start}
+.ptabs{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+.ptab{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);color:inherit;border-radius:999px;padding:6px 12px;font-size:13px;cursor:pointer}
+.ptab i{font-style:normal;opacity:.6;margin-left:3px}
+.ptab.on{background:var(--gold);color:#111;border-color:var(--gold)}
+.ptab.on i{opacity:.8}
 
 /* мой телефон / звонок */
 .call{width:360px;border-radius:36px;background:linear-gradient(180deg,#1a2335,#0b0f18);border:8px solid #1c1c22;padding:30px 22px 24px;text-align:center;box-shadow:0 30px 80px rgba(0,0,0,.8)}
@@ -1064,7 +1069,7 @@ window.CASES.push({
 // Строит дело в формате движка из номера (детерминированно).
 (function (root) {
   'use strict';
-  const GEN_VER = 1;
+  const GEN_VER = 2;
   function rngFrom(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 
   // ---------- имена и склонение ----------
@@ -1176,6 +1181,14 @@ window.CASES.push({
     const dateS = `${day} ${MONTHS[mon]}`;
     const nextS = `${day + 1} ${MONTHS[mon]}`;
     const tMin = 21 * 60 + 20 + Math.floor(R() * 37) * 2;
+    // способы раскрытия: у каждого дела своя комбинация
+    const RR = rngFrom(num * 31337 + 911);
+    const routeB = ['bank', 'billing', 'taxi', 'tcard', 'plate'][num % 5];
+    const routeA = alive ? ['chat', 'call'][Math.floor(num / 15) % 2] : ['chat', 'call', 'memo'][Math.floor(num / 15) % 3];
+    const catchBy = ['dna', 'phone', 'search'][Math.floor(num / 5) % 3];
+    const witKind = routeB === 'plate' ? 'car' : routeB === 'taxi' ? 'taxi' : routeB === 'tcard' ? 'foot' : (RR() < 0.5 ? 'car' : 'voice');
+    const pinKind = num % 3 === 1 ? 'year' : 'date';
+    const foundY = 1996 + Math.floor(RR() * 20);
     const hm = m => { m = ((m % 1440) + 1440) % 1440; return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); };
     const T = hm(tMin), T1 = hm(tMin - 20), T2 = hm(tMin + 20);
     const dd = String(day).padStart(2, '0') + '.' + String(mon + 1).padStart(2, '0');
@@ -1328,7 +1341,7 @@ window.CASES.push({
     // сцена
     const spots = [];
     const trace = pick(TRACES[crime === 'poison' ? 'poison' : crime]);
-    E('ev_trace', trace[0][0].toUpperCase() + trace[0].slice(1), trace[1], 'Вещдоки', `Найдено на месте: ${trace[0]}.`, { time: 30, text: `Экспертиза: ${trace[2]}. Для сравнения нужен образец подозреваемого.`, set: ['trace_lab'], note: `По следу «${trace[0]}» нужен образец подозреваемого для сравнения.` });
+    E('ev_trace', trace[0][0].toUpperCase() + trace[0].slice(1), trace[1], 'Вещдоки', `Найдено на месте: ${trace[0]}.`, catchBy === 'dna' ? { time: 30, text: `Экспертиза: ${trace[2]}. Для сравнения нужен образец подозреваемого.`, set: ['trace_lab'], note: `По следу «${trace[0]}» нужен образец подозреваемого для сравнения.` } : { time: 30, text: `Экспертиза: ${trace[2]}. Но след частичный и смазанный — для надёжного сравнения почти непригоден. Ищите другие доказательства.`, set: ['trace_lab'], note: `След «${trace[0]}» почти непригоден для сравнения.` });
     if (crime === 'murder') {
       E('ev_weapon', `Орудие: ${weapon}`, '🔨', 'Вещдоки', `${weapon[0].toUpperCase() + weapon.slice(1)} со следами крови. Найдено рядом с телом.`, { time: 30, text: `Кровь на предмете принадлежит жертве. Отпечатки стёрты — убийца действовал хладнокровно.`, set: ['weapon_lab'], note: 'Отпечатки с орудия убийства стёрты.' });
       spots.push({ id: 'body', name: 'Место, где лежало тело', text: `Меловой контур на полу. Рядом лежит орудие — ${weapon}, на нём следы крови. Удар нанесли сзади: ${V.first} не ждал${G(V, '', 'а')} нападения от того, кто был рядом.`, give: ['ev_weapon'] });
@@ -1366,14 +1379,41 @@ window.CASES.push({
       if (spouse) homePeople.push(spouse.id); else if (relative) homePeople.push(relative.id);
     }
     // контакт преступника
-    E('ev_contact', `Переписка ${V.fgen} и ${CU.fgen} в ${hm(alive ? tMin - 290 : tMin - 25)}`, '💬', 'Телефоны', alive ? `За несколько часов до ${crimeWord === 'кража' ? 'кражи' : 'пожара'} ${CU.name} выяснял${G(CU, '', 'а')}, когда ${V.first} уйдёт и кто останется в ${pl.prep}.` : `В ${hm(tMin - 25)} ${CU.name} написал${G(CU, '', 'а')}: «Нам надо поговорить. Сейчас приеду». ${V.first} ответил${G(V, '', 'а')}: «Жду».`);
+    const cT = alive ? tMin - 290 : tMin - 25;
+    const sim2 = '+7 9' + (10 + Math.floor(RR() * 90)) + ' ' + (100 + Math.floor(RR() * 900)) + '-' + (10 + Math.floor(RR() * 90)) + '-' + (10 + Math.floor(RR() * 90));
+    const motWord = { debt: 'деньги', inherit: 'завещание', jealous: 'ту историю', business: 'продажу', exposure: 'недостачу', revenge: 'увольнение' }[CU.mot];
+    const memoT = tMin - 32;
+    const crimeGen = { murder: 'убийства', poison: 'отравления', theft: 'кражи', arson: 'пожара' }[crime];
+    if (routeA === 'chat') E('ev_contact', `Переписка ${V.fgen} и ${CU.fgen} в ${hm(alive ? tMin - 290 : tMin - 25)}`, '💬', 'Телефоны', alive ? `За несколько часов до ${crimeWord === 'кража' ? 'кражи' : 'пожара'} ${CU.name} выяснял${G(CU, '', 'а')}, когда ${V.first} уйдёт и кто останется в ${pl.prep}.` : `В ${hm(tMin - 25)} ${CU.name} написал${G(CU, '', 'а')}: «Нам надо поговорить. Сейчас приеду». ${V.first} ответил${G(V, '', 'а')}: «Жду».`);
+    else if (routeA === 'call') E('ev_contact', `Звонок со второй SIM-карты ${CU.fgen}`, '📞', 'Телефоны', `${dateS}, ${hm(cT - 1)}: звонок ${V.fdat} с номера ${sim2}, 47 секунд. Номер оформлен на ${CU.name} — вторая SIM-карта, о которой никто не знал. ${alive ? 'За несколько часов до ' + crimeGen + '.' : 'За полчаса до ' + crimeGen + '.'}`);
+    else E('ev_contact', `Голосовая заметка ${V.fgen}, ${hm(memoT)}`, '🎙️', 'Телефоны', `${dateS}, ${hm(memoT)}. Голос ${V.fgen}: «${CU.first} только что звонил${G(CU, '', 'а')}. Сказал${G(CU, '', 'а')}, что приедет поговорить. Опять про ${motWord}. Не нравится мне это…»`);
     // свидетели
     const plate2 = CU.car.plate.split(' ')[0] + ' ' + CU.car.plate.split(' ')[1][0];
-    E('ev_witness', `Показания: ${W1.name}`, '👁️', 'Показания', `Около ${hm(tMin - 10)} к ${pl.dat} подъехала ${CU.car.color[0]} машина, похоже «${CU.car.model[1]}». Номер начинался на «${plate2}». Около ${hm(tMin + 12)} уехала.`);
+    const cuWho = CU.f ? 'женщина' : 'мужчина', cuAge = CU.age < 40 ? 'молод' + G(CU, 'ой', 'ой') : 'немолод' + G(CU, 'ой', 'ой');
+    const witDesc = {
+      car: `Около ${hm(tMin - 10)} к ${pl.dat} подъехала ${CU.car.color[0]} машина, похоже «${CU.car.model[1]}». Номер начинался на «${plate2}». Около ${hm(tMin + 12)} уехала.`,
+      voice: crime === 'theft' || crime === 'arson' ? `Около ${hm(tMin - 8)} у служебного входа ${pl.gen} кто-то говорил по телефону: голос ${CU.f ? 'женский' : 'мужской'}, ${CU.age < 40 ? 'молодой' : 'немолодой'}. Разобрал${G(W1, '', 'а')} только «никого нет» и «быстро». Машины не было.` : `Около ${hm(tMin - 6)} из ${pl.gen} доносилась ссора. Второй голос — ${CU.f ? 'женский' : 'мужской'}, ${CU.age < 40 ? 'молодой' : 'немолодой'}. Около ${hm(tMin + 10)} хлопнула дверь, и всё стихло.`,
+      foot: `Около ${hm(tMin + 8)} из ${pl.gen} быстро вышел${G(CU, '', 'а')} ${cuWho} в тёмной куртке с капюшоном и почти бегом ${G(CU, 'пошёл', 'пошла')} к автобусной остановке. Машины не было.`,
+      taxi: `Около ${hm(tMin - 15)} к ${pl.dat} подъехало жёлтое такси «Мигом». Вышел${G(CU, '', 'а')} ${cuWho} в тёмной куртке и сразу ${G(CU, 'пошёл', 'пошла')} ко входу. Такси уехало.`,
+    }[witKind];
+    E('ev_witness', `Показания: ${W1.name}`, '👁️', 'Показания', witDesc);
     E('ev_witness2', `Показания: ${W2.name}`, '👂', 'Показания', crime === 'arson' ? `Около ${hm(tMin - 5)} у служебного входа мелькнул человек с канистрой. Через десять минут из окон пошёл дым.` : `Около ${T} из ${pl.gen} донёсся грохот, потом стало тихо. Минут через пятнадцать хлопнула дверь.`);
     // банк преступника
     const cshop = pick(SHOPS);
-    E('ev_cbank', `Оплата ${CU.fgen} рядом с местом`, '💳', 'Финансы', `${dateS}, ${hm(tMin - 14)}: ${cshop}, ул. ${street}, ${house + 2}. В двух шагах от ${pl.gen} — в то время, когда ${CU.first}, по ${G(CU, 'его', 'её')} словам, ${trick === 'fakealibi' ? 'был' + G(CU, '', 'а') + ' у друга' : 'был' + G(CU, '', 'а') + ' дома'}.`);
+    const homeSt = CU.db.addr.split(',')[0];
+    const busN = 3 + Math.floor(RR() * 60);
+    const bTime = { bank: tMin - 14, billing: tMin - 16, taxi: tMin - 15, tcard: tMin + 14, plate: tMin - 11 }[routeB];
+    const cbTail = ` — в то время, когда ${CU.first}, по ${G(CU, 'его', 'её')} словам, ${trick === 'fakealibi' ? 'был' + G(CU, '', 'а') + ' у друга' : 'был' + G(CU, '', 'а') + ' дома'}.`;
+    const cbName = { bank: `Оплата ${CU.fgen} рядом с местом`, billing: `Геолокация телефона ${CU.fgen}`, taxi: `Поездка ${CU.fgen} на такси`, tcard: `Транспортная карта ${CU.fgen}`, plate: `Камера: машина ${CU.fgen} у места` }[routeB];
+    const cbIcon = { bank: '💳', billing: '📡', taxi: '🚕', tcard: '🚌', plate: '📷' }[routeB];
+    const cbDesc = {
+      bank: `${dateS}, ${hm(bTime)}: ${cshop}, ул. ${street}, ${house + 2}. В двух шагах от ${pl.gen}`,
+      billing: `${dateS}, ${hm(bTime)}: телефон ${CU.fgen} обслуживала базовая станция на ул. ${street} — это радиус около 300 метров вокруг ${pl.gen}`,
+      taxi: `${dateS}: заказ такси «Мигом» с номера ${CU.fgen} — от дома (${homeSt}) до ул. ${street}, ${house + 4}, высадка в ${hm(bTime)}. Это соседний дом с местом преступления`,
+      tcard: `${dateS}, ${hm(bTime)}: транспортная карта ${CU.fgen} — вход в автобус №${busN} на остановке «Улица ${street}», в двух минутах пешком от ${pl.gen}`,
+      plate: `${dateS}, ${hm(bTime)}: камера на перекрёстке ул. ${street} зафиксировала ${CU.car.color[1]} «${CU.car.model[1]}», номер ${CU.car.plate}. Владелец по базе — ${CU.name}`,
+    }[routeB];
+    E('ev_cbank', cbName, cbIcon, routeB === 'bank' ? 'Финансы' : 'Запросы', cbDesc + cbTail);
     // покупка
     let buyEv = null;
     if (crime === 'arson') buyEv = E('ev_buy', 'Покупка канистры бензина', '⛽', 'Финансы', `Выписка ${CU.fgen}: накануне — АЗС «Нефтемаг», «бензин АИ-92, 10 л + канистра».`);
@@ -1403,16 +1443,17 @@ window.CASES.push({
     });
     // вечерние сообщения невиновных жертве
     INN.forEach(p => E('ev_eve_' + p.id, `Сообщение ${p.fgen} вечером ${dateS}`, '💬', 'Телефоны', p.secret ? `${p.first} написал${G(p, '', 'а')} ${V.fdat}, что весь вечер будет дома.` : `${p.first} написал${G(p, '', 'а')} ${V.fdat}, что вечером будет в «${p.venue.n.split('«')[1]}.`));
+    if (routeA !== 'chat') E('ev_eve_' + CU.id, `Сообщение ${CU.fgen} вечером ${dateS}`, '💬', 'Телефоны', `${CU.first} написал${G(CU, '', 'а')} ${V.fdat}, что весь вечер будет дома.`);
     // алиби невиновных
     INN.forEach(p => {
       p.alibiEv = E('ev_alibi_' + p.id, `Оплата ${p.fgen}: ${p.venue.n}`, p.venue.ic, 'Финансы', `${dateS}, ${hm(tMin - 18)} и ${hm(tMin + 22)}: ${p.venue.n}, ${p.venue.a}. Это на другом конце города от ${pl.gen}.`);
       p.cctvEv = E('ev_cctv_' + p.id, `Алиби подтверждено: ${p.name}`, '📹', 'Показания', `${p.venue.cctv[0].toUpperCase() + p.venue.cctv.slice(1)}: ${p.name} был${G(p, '', 'а')} в «${p.venue.n.split('«')[1]} с ${hm(tMin - 40)} до ${hm(tMin + 50)}, не отлучал${G(p, 'ся', 'ась')}.`);
     });
     // после задержания
-    E('ev_sample', `Образец ДНК и отпечатки ${CU.fgen}`, '🧬', 'Вещдоки', 'Взяты при задержании.', { time: 30, req: ['trace_lab'], text: `Образец ${CU.fgen} совпал со следом «${trace[0]}». ${CU.first} был${G(CU, '', 'а')} на месте преступления.`, set: ['trace_match'], note: `След «${trace[0]}» оставил${G(CU, '', 'а')} ${CU.name}.` });
+    E('ev_sample', `Образец ДНК и отпечатки ${CU.fgen}`, '🧬', 'Вещдоки', 'Взяты при задержании.', catchBy === 'dna' ? { time: 30, req: ['trace_lab'], text: `Образец ${CU.fgen} совпал со следом «${trace[0]}». ${CU.first} был${G(CU, '', 'а')} на месте преступления.`, set: ['trace_match'], note: `След «${trace[0]}» оставил${G(CU, '', 'а')} ${CU.name}.` } : { time: 30, req: ['trace_lab'], text: `Сравнить не получилось: след «${trace[0]}» слишком смазан. Экспертиза ни подтверждает, ни опровергает. Нужно искать другое — телефон, обыск, переписки.`, set: ['sample_fail'], note: 'ДНК ничего не дала — нужен другой путь.' });
     E('ev_cphone', `Телефон ${CU.fgen}`, '📱', 'Вещдоки', 'Изъят при задержании, передан в техотдел.');
-    E('ev_cmsg', `Удалённые данные ${CU.fgen}`, '🗑️', 'Телефоны', 'Восстановлено техотделом.');
-    const chomeEv = E('ev_chome', `Находка при обыске у ${CU.fgen}`, '🧳', 'Вещдоки', crime === 'theft' ? `В шкафу — часть похищенного: ${loot.split('(')[0]}. Остальное, видимо, уже продано.` : crime === 'arson' ? 'В багажнике машины — пустая канистра, пахнущая бензином, и перчатки.' : crime === 'poison' ? `В кармане куртки — пустой флакон с остатками: ${poison}.` : 'В стиральной машине — недостиранная куртка с бурыми пятнами на рукаве.');
+    if (catchBy === 'phone') E('ev_cmsg', `Удалённые данные ${CU.fgen}`, '🗑️', 'Телефоны', 'Восстановлено техотделом.');
+    const chomeEv = catchBy === 'search' ? E('ev_chome', `Находка при обыске у ${CU.fgen}`, '🧳', 'Вещдоки', crime === 'theft' ? `В тайнике за шкафом — ${loot.split('(')[0]} и бумажка с кодом от сейфа, написанная рукой ${CU.fgen}.` : crime === 'arson' ? `В гараже — канистра с остатками бензина и чек с АЗС за ${dateS}. На рукаве куртки — прожжённые пятна.` : crime === 'poison' ? `В тайнике на балконе — флакон с остатками: ${poison}. На флаконе — отпечатки ${CU.fgen}.` : `В пакете на антресолях — куртка с бурыми пятнами. Экспресс-тест: кровь ${V.fgen}.`) : E('ev_chome', `Находка при обыске у ${CU.fgen}`, '🧳', 'Вещдоки', crime === 'theft' ? `В шкафу — часть похищенного: ${loot.split('(')[0]}. Остальное, видимо, уже продано.` : crime === 'arson' ? 'В багажнике машины — пустая канистра, пахнущая бензином, и перчатки.' : crime === 'poison' ? `В кармане куртки — пустой флакон с остатками: ${poison}.` : 'В стиральной машине — недостиранная куртка с бурыми пятнами на рукаве.');
     let fenceEv = null;
     if (FE) fenceEv = E('ev_fence', `Перевод от ${FE.gen}`, '💸', 'Финансы', `Выписка ${CU.fgen}: ${nextS}, 15:40 — перевод от ИП ${FE.sur} ${FE.first[0]}. на 680 000 ₽. На следующий день после кражи.`);
     let wireEv = null;
@@ -1423,7 +1464,7 @@ window.CASES.push({
     const locations = [];
     locations.push({ id: 'scene', name: place[0].toUpperCase() + place.slice(1), addr, icon: ST.ic, req: [], art: ST.art, desc: `${ST.room[0].toUpperCase() + ST.room.slice(1)}. ${crime === 'murder' ? 'Тело увезли, на полу меловой контур.' : crime === 'arson' ? 'Всё в копоти, пахнет гарью и мокрым пеплом.' : crime === 'poison' ? 'Всё осталось так, как было вечером: стол, бокалы, приглушённый свет.' : 'Тишина. Дверь сейфа распахнута.'} Место опечатано.`, spots });
     locations.push({ id: 'street', name: `Улица ${street}`, addr: `ул. ${street}, ${house - 2}–${house + 6}`, icon: '🏘️', req: ['v_scene'], art: ['#1e2a33', '#3a5060'], desc: 'Соседние дома, круглосуточный магазин, парковка. Кто-то наверняка что-то видел.', people: [W1.id, W2.id] });
-    if (!alive) locations.push({ id: 'home', name: `Дом ${V.fgen}`, addr: V.db.addr, icon: '🏠', req: ['v_scene'], art: ['#2c2620', '#5a4a3a'], desc: 'Квартира жертвы. Фотографии на стенах, недопитый чай на кухне.', people: homePeople, spots: [{ id: 'photo', name: 'Фотографии на стене', text: `Семейное фото. Подпись: «${spouse ? 'Наша свадьба' : 'Наша дочка родилась'} — ${String(pinDate.d).padStart(2, '0')}.${String(pinDate.m).padStart(2, '0')}». ${V.first} хранил${G(V, '', 'а')} эту дату во всём — так говорят близкие.`, set: ['hint_pin'], note: `Важная для жертвы дата: ${String(pinDate.d).padStart(2, '0')}.${String(pinDate.m).padStart(2, '0')}.` }] });
+    if (!alive) locations.push({ id: 'home', name: `Дом ${V.fgen}`, addr: V.db.addr, icon: '🏠', req: ['v_scene'], art: ['#2c2620', '#5a4a3a'], desc: 'Квартира жертвы. Фотографии на стенах, недопитый чай на кухне.', people: homePeople, spots: [pinKind === 'year' ? { id: 'photo', name: 'Фотографии на стене', text: `Старое фото: ${V.first} на открытии ${pl.gen}, перерезает ленточку. Подпись от руки: «С чего всё началось — ${foundY}». Близкие говорят, этот год ${V.first} считал${G(V, '', 'а')} главным в жизни.`, set: ['hint_pin'], note: `Важный для жертвы год: ${foundY}.` } : { id: 'photo', name: 'Фотографии на стене', text: `Семейное фото. Подпись: «${spouse ? 'Наша свадьба' : 'Наша дочка родилась'} — ${String(pinDate.d).padStart(2, '0')}.${String(pinDate.m).padStart(2, '0')}». ${V.first} хранил${G(V, '', 'а')} эту дату во всём — так говорят близкие.`, set: ['hint_pin'], note: `Важная для жертвы дата: ${String(pinDate.d).padStart(2, '0')}.${String(pinDate.m).padStart(2, '0')}.` }] });
     else locations.push({ id: 'office', name: `${V.name}`, addr: V.db.addr, icon: '🧑‍💼', req: [], art: ['#2a2a38', '#4a4a6a'], desc: `${V.first} встречает вас взволнованн${G(V, 'ым', 'ой')} и злым${G(V, '', '')}. ${crime === 'theft' ? 'Пропажа выбила из колеи.' : 'Пожар уничтожил дело всей жизни.'}`, people: [V.id] });
     INN.forEach(p => locations.push({ id: 'ven_' + p.id, name: p.venue.n, addr: p.venue.a, icon: p.venue.ic, req: [[p.alibiEv, 't_' + p.id + '_where_true']], art: ['#2a2238', '#4a3a6a'], desc: `Проверка алиби: ${p.name}.`, people: [p.staff.id] }));
     if (FR) locations.push({ id: 'friend', name: `Квартира ${FR.fgen}`, addr: FR.db.addr, icon: '🛋️', req: ['k_' + FR.id], art: ['#222', '#444'], desc: `${FR.role}. Пустые бутылки, телевизор.`, people: [FR.id] });
@@ -1439,7 +1480,12 @@ window.CASES.push({
       mts.forEach((t, i) => { if (i && t <= mts[i - 1]) mts[i] = mts[i - 1] + 7; });
       mt.forEach((m, i) => msgs.push([d0 + ' ' + hm(mts[i]), m[0], m[1], m[2]]));
       if (p === CU) {
-        if (alive) {
+        if (routeA !== 'chat') {
+          const t0 = alive ? tMin - 310 + Math.floor(R() * 30) : tMin - 110 + Math.floor(R() * 30);
+          msgs.push([dd + ' ' + hm(t0), 'them', vp(['Сегодня не приеду, устал' + G(CU, '', 'а') + '. Весь вечер дома.', 'Давай завтра обсудим. Я дома, никуда не собираюсь.', 'Не сегодня. Сижу дома, голова раскалывается.']), 'ev_eve_' + CU.id]);
+          msgs.push([dd + ' ' + hm(t0 + 4), 'me', vp(['Как знаешь.', 'Ладно.', 'Хорошо, завтра.'])]);
+        }
+        else if (alive) {
           msgs.push([dd + ' ' + hm(tMin - 290), 'them', `Ты сегодня до скольки ${ST.id === 'cottage' ? 'дома' : 'на месте'}? И кто-то ещё останется?`, 'ev_contact']);
           msgs.push([dd + ' ' + hm(tMin - 280), 'me', 'Уезжаю в восемь, никого не будет. А что?']);
         } else {
@@ -1456,17 +1502,18 @@ window.CASES.push({
       return { with: p.name, msgs };
     });
     const vcalls = [];
-    if (!alive) vcalls.push({ t: dd + ' ' + hm(tMin - 26), who: CU.name, dir: 'in', dur: '0:47' });
+    if (routeA === 'call') vcalls.push({ t: dd + ' ' + hm(cT - 1), who: sim2, dir: 'in', dur: '0:47' });
+    else if (!alive) vcalls.push({ t: dd + ' ' + hm(tMin - 26 - (routeA === 'memo' ? 10 : 0)), who: CU.name, dir: 'in', dur: '0:47' });
     INN.slice(0, 2).forEach(p => vcalls.push({ t: dd + ' ' + hm(tMin - 200 - Math.floor(R() * 200)), who: p.name, dir: pick(['in', 'out']), dur: '1:' + (10 + Math.floor(R() * 49)) }));
     vcalls.sort((a, b) => (a.t < b.t ? 1 : -1));
     const phones = {
-      v: { owner: V.id, title: `Телефон ${V.fgen}`, req: ['ev_vphone'], pin: alive ? null : pinDate.pin, pinHint: `Четыре цифры. Говорят, у ${V.fgen} была одна особенно важная дата.`, tech: 75, openFlag: 'vphone_open', wall: [ST.art[0], ST.art[1]],
+      v: { owner: V.id, title: `Телефон ${V.fgen}`, req: ['ev_vphone'], pin: alive ? null : pinKind === 'year' ? String(foundY) : pinDate.pin, pinHint: pinKind === 'year' ? `Четыре цифры. Коллеги говорят, ${V.first} гордил${G(V, 'ся', 'ась')} тем, как всё начиналось.` : `Четыре цифры. Говорят, у ${V.fgen} была одна особенно важная дата.`, tech: 75, openFlag: 'vphone_open', wall: [ST.art[0], ST.art[1]],
         contacts: S.map(p => [p.name, p.phone]), calls: vcalls, chats: vchats,
-        notes: [{ t: dd + ' 09:12', title: 'Дела', text: `Позвонить юристу.\n${S.find(p => p.mot === 'inherit') ? 'Завещание — к нотариусу.\n' : ''}${S.find(p => p.mot === 'exposure') ? 'Отчёты не сходятся — кто?\n' : ''}Купить подарок.` }], memos: [], photos: [] },
+        notes: [{ t: dd + ' 09:12', title: 'Дела', text: `Позвонить юристу.\n${S.find(p => p.mot === 'inherit') ? 'Завещание — к нотариусу.\n' : ''}${S.find(p => p.mot === 'exposure') ? 'Отчёты не сходятся — кто?\n' : ''}Купить подарок.` }], memos: routeA === 'memo' ? [{ t: dd + ' ' + hm(memoT), dur: '0:19', text: `«${CU.first} только что звонил${G(CU, '', 'а')}. Сказал${G(CU, '', 'а')}, что приедет поговорить. Опять про ${motWord}. Не нравится мне это…»`, ev: 'ev_contact' }] : [], photos: [] },
     };
     const cTarget = FE ? FE : FR ? FR : null;
     const cchats = [];
-    if (FE) cchats.push({ with: 'Ломбард', restored: true, msgs: [[dd + ' ' + hm(tMin + 40), 'me', 'Товар у меня. Как договаривались.', 'ev_cmsg'], [dd + ' ' + hm(tMin + 45), 'them', 'Завтра в три. Деньги переведу.'], [dd2 + ' 15:41', 'them', 'Перевёл. Больше не пиши.']] });
+    if (catchBy !== 'phone') {} else if (FE) cchats.push({ with: 'Ломбард', restored: true, msgs: [[dd + ' ' + hm(tMin + 40), 'me', 'Товар у меня. Как договаривались.', 'ev_cmsg'], [dd + ' ' + hm(tMin + 45), 'them', 'Завтра в три. Деньги переведу.'], [dd2 + ' 15:41', 'them', 'Перевёл. Больше не пиши.']] });
     else if (FR) cchats.push({ with: FR.first, restored: true, msgs: [[dd + ' ' + hm(tMin + 35), 'me', `Если спросят — я весь вечер был${G(CU, '', 'а')} у тебя. Пожалуйста.`, 'ev_cmsg'], [dd + ' ' + hm(tMin + 40), 'them', 'Что случилось?? Ладно. Но ты мне всё объяснишь.']] });
     else cchats.push({ with: 'Заметки (удалено)', restored: true, msgs: [[dd + ' ' + hm(tMin + 30), 'me', `Поиск: «как удалить отпечатки», «сколько дают за ${crimeWord === 'отравление' ? 'отравление' : crimeWord === 'поджог' ? 'поджог' : 'убийство'}», «не отслеживается ли телефон»`, 'ev_cmsg']] });
     cchats.push({ with: V.first, msgs: (vchats[culpritIdx].msgs).map(m => [m[0], m[1] === 'me' ? 'them' : 'me', m[2]]) });
@@ -1480,17 +1527,62 @@ window.CASES.push({
       for (let i = 0; i < 3; i++) tx.push(noise()[0]);
       if (p.mot === 'debt') tx.push([`${String(Math.max(1, day - 3)).padStart(2, '0')}.${String(mon + 1).padStart(2, '0')} 12:00`, -(5000 + Math.floor(R() * 9000)), 'МФО «ДеньгиСразу», погашение просрочки']);
       if (p === CU) {
-        tx.push([dd + ' ' + hm(tMin - 14), -(150 + Math.floor(R() * 600)), `${cshop}, ул. ${street}, ${house + 2}`, 'ev_cbank']);
+        const amt0 = -(150 + Math.floor(R() * 600));
+        if (routeB === 'bank') tx.push([dd + ' ' + hm(tMin - 14), amt0, `${cshop}, ул. ${street}, ${house + 2}`, 'ev_cbank']);
+        else if (routeB !== 'billing') {
+          const dl = pick(['«Яндекс Еда»', '«Самокат»', 'пиццерия «Додо»', 'суши «Тануки»']);
+          E('ev_cdeliv', `Доставка еды ${CU.fgen}`, '🍕', 'Финансы', `${dateS}, ${hm(tMin - 78)}: заказ ${dl} с доставкой по адресу ${CU.db.addr}. Будто бы подтверждает, что ${CU.first} ${trick === 'fakealibi' ? 'вечером ещё был' + G(CU, '', 'а') + ' дома' : 'был' + G(CU, '', 'а') + ' дома'}. Но доставка была за час с лишним до преступления.`);
+          tx.push([dd + ' ' + hm(tMin - 78), -(600 + Math.floor(RR() * 1500)), `Доставка: ${dl}`, 'ev_cdeliv']);
+          tx.push([dd + ' ' + hm(tMin - 30 - Math.floor(RR() * 20)), -(199 + Math.floor(RR() * 300)), 'Онлайн-кинотеатр «Кинопоиск», покупка фильма']);
+        }
         if (crime === 'arson') tx.push([`${String(Math.max(1, day - 1)).padStart(2, '0')}.${String(mon + 1).padStart(2, '0')} 19:20`, -2150, 'АЗС «Нефтемаг», бензин АИ-92 10 л + канистра', 'ev_buy']);
         if (crime === 'poison') tx.push([`${String(Math.max(1, day - 3)).padStart(2, '0')}.${String(mon + 1).padStart(2, '0')} 17:05`, -640, 'Магазин «Хозтовары»', 'ev_buy']);
         if (FE) tx.push([dd2 + ' 15:40', 680000, `Перевод от ИП ${FE.sur} ${FE.first[0]}., ****${FE.bankAcc.split('****')[1].split(' ')[0]}`, 'ev_fence', FE.id]);
       } else {
-        tx.push([dd + ' ' + hm(tMin - 18), -(800 + Math.floor(R() * 5000)), `${p.venue.n}, ${p.venue.a}`, p.alibiEv]);
-        tx.push([dd + ' ' + hm(tMin + 22), -(300 + Math.floor(R() * 3000)), `${p.venue.n}, ${p.venue.a}`, p.alibiEv]);
+        const a1 = -(800 + Math.floor(R() * 5000)), a2 = -(300 + Math.floor(R() * 3000));
+        if (routeB !== 'billing') {
+          tx.push([dd + ' ' + hm(tMin - 18), a1, `${p.venue.n}, ${p.venue.a}`, p.alibiEv]);
+          tx.push([dd + ' ' + hm(tMin + 22), a2, `${p.venue.n}, ${p.venue.a}`]);
+        }
       }
       tx.sort((a, b) => (a[0].slice(3, 5) + a[0].slice(0, 2) + a[0].slice(6) < b[0].slice(3, 5) + b[0].slice(0, 2) + b[0].slice(6) ? 1 : -1));
       bank[p.id] = { owner: p.id, acc: p.bankAcc, req: ['k_' + p.id], delay: 20, tx };
     });
+    // ---------- запросы ----------
+    const records = {};
+    const pHome = p => p.db.addr.split(',')[0];
+    const whyAsk = p => `Запрос дают только под проверку конкретных показаний. Сначала спросите ${p.acc}, где ${G(p, 'он был', 'она была')} в тот вечер.`;
+    if (routeB === 'billing') S.forEach(p => {
+      const rows = [[dd + ' ' + hm(tMin - 95 - Math.floor(RR() * 30)), `Базовая станция «${pHome(p)}» — район дома`]];
+      if (p === CU) rows.push([dd + ' ' + hm(bTime), `Базовая станция «ул. ${street}» — радиус ~300 м`, 'ev_cbank'], [dd + ' ' + hm(tMin + 38), `Базовая станция «${pHome(p)}» — район дома`]);
+      else rows.push([dd + ' ' + hm(tMin - 18), `Базовая станция «${p.venue.a.replace(/,.*$/, '')}» — рядом: ${p.venue.n}`, p.alibiEv], [dd + ' ' + hm(tMin + 22), `Базовая станция «${p.venue.a.replace(/,.*$/, '')}» — рядом: ${p.venue.n}`, p.alibiEv]);
+      records['bill_' + p.id] = { title: `Биллинг: ${p.name}`, short: 'Биллинг', icon: '📡', sub: `Оператор связи · ${p.phone}`, owner: p.id, req: ['k_' + p.id, 't_' + p.id + '_where'], why: whyAsk(p), delay: 25, col: 'Где был телефон', head: `Номер ${p.phone} · ${dateS}`, rows };
+    });
+    if (routeB === 'taxi') S.forEach(p => {
+      const rows = [[`${String(Math.max(1, day - 2)).padStart(2, '0')}.${String(mon + 1).padStart(2, '0')} ${hm(500 + Math.floor(RR() * 300))}`, `${pHome(p)} → ${pick(STREETS) === street ? 'ул. Центральная' : 'ул. ' + pick(STREETS)}, 1 · ${200 + Math.floor(RR() * 400)} ₽`]];
+      if (p === CU) rows.push([dd + ' ' + hm(tMin - 35), `${pHome(p)} → ул. ${street}, ${house + 4} · высадка ${hm(bTime)}`, 'ev_cbank']);
+      else if (!p.car) rows.push([dd + ' ' + hm(tMin - 55), `${pHome(p)} → ${p.venue.a} (${p.venue.n})`, p.alibiEv]);
+      else rows.push([dd + ' ' + hm(720 + Math.floor(RR() * 240)), `${pHome(p)} → ул. ${pick(STREETS)}, ${2 + Math.floor(RR() * 40)} · ${250 + Math.floor(RR() * 300)} ₽ (машина в сервисе)`]);
+      records['taxi_' + p.id] = { title: `Такси «Мигом»: ${p.name}`, short: 'Такси', icon: '🚕', sub: `Поездки по номеру ${p.phone}`, owner: p.id, req: ['k_' + p.id, 't_' + p.id + '_where'], why: whyAsk(p), delay: 20, col: 'Поездка', head: `Номер ${p.phone} · последние поездки`, rows };
+    });
+    if (routeB === 'tcard') S.forEach(p => {
+      const rows = [[`${String(Math.max(1, day - 1)).padStart(2, '0')}.${String(mon + 1).padStart(2, '0')} ${hm(470 + Math.floor(RR() * 120))}`, `Автобус №${3 + Math.floor(RR() * 60)}, вход: «${pHome(p)}»`]];
+      if (p === CU) rows.push([dd + ' ' + hm(tMin - 42), `Автобус №${busN}, вход: «${pHome(p)}»`], [dd + ' ' + hm(bTime), `Автобус №${busN}, вход: «Улица ${street}»`, 'ev_cbank']);
+      else rows.push([dd + ' ' + hm(480 + Math.floor(RR() * 60)), `Автобус №${3 + Math.floor(RR() * 60)}, вход: «${pHome(p)}»`], [dd + ' ' + hm(p.car ? 1080 + Math.floor(RR() * 60) : tMin - 60), p.car ? `Трамвай №${1 + Math.floor(RR() * 12)}, вход: «Центральный рынок»` : `Автобус №${3 + Math.floor(RR() * 60)}, вход: «${pHome(p)}», в сторону «${p.venue.a.replace(/,.*$/, '')}»`]);
+      records['tc_' + p.id] = { title: `Транспортная карта: ${p.name}`, short: 'Транспорт', icon: '🚌', sub: 'Проезд в автобусах и трамваях', owner: p.id, req: ['k_' + p.id, 't_' + p.id + '_where'], why: whyAsk(p), delay: 20, col: 'Поездка', head: `Карта «Тройка-${100000 + Math.floor(RR() * 899999)}» · последние поездки`, rows };
+    });
+    if (routeB === 'plate') {
+      const rows = [];
+      const others = shuffle(CARS.filter(c => c !== CU.car.model)).slice(0, 4);
+      const decoy1 = { model: CU.car.model, color: shuffle(COLORS.filter(c => c !== CU.car.color))[0], plate: plate() };
+      const decoy2 = { model: others[0], color: CU.car.color, plate: CU.car.plate.split(' ')[0] + ' ' + (100 + Math.floor(RR() * 900)) + ' ' + pick(PLATE) + pick(PLATE) };
+      const pool = [[tMin - 27, decoy1], [tMin - 19, decoy2], [tMin - 4, { model: others[1], color: pick(COLORS), plate: plate() }], [tMin + 6, { model: others[2], color: pick(COLORS), plate: plate() }], [tMin + 16, { model: others[3], color: pick(COLORS), plate: plate() }]];
+      pool.forEach(([t, c], i) => { const id = 'ev_cam' + i; E(id, `Камера: ${c.model[1]} ${c.plate}`, '📷', 'Запросы', `${dateS}, ${hm(t)}: ${c.color[0]} «${c.model[1]}», ${c.plate}. Владелец по базе — посторонний человек, с делом не связан.`); rows.push([dd + ' ' + hm(t), `${c.model[0]}, ${c.color[0]}, ${c.plate}`, id]); });
+      rows.push([dd + ' ' + hm(bTime), `${CU.car.model[0]}, ${CU.car.color[0]}, ${CU.car.plate}`, 'ev_cbank']);
+      rows.sort((a, b) => (a[0] < b[0] ? -1 : 1));
+      records.cam = { title: `Камера на перекрёстке ул. ${street}`, short: 'Камера', icon: '📷', sub: 'Дорожная камера фиксации номеров', show: ['v_street'], req: ['ev_witness'], why: 'Без ориентировки запись не выдадут. Опросите свидетелей — что именно искать?', delay: 20, col: 'Машина', head: `${dateS}, ${hm(tMin - 30)}–${hm(tMin + 20)}`, note: 'Сверьте машины с показаниями свидетеля: марка, цвет, первые знаки номера.', rows };
+    }
+    if (routeA === 'call') records.opr = { title: `Владелец номера ${sim2}`, short: 'Оператор', icon: '📞', sub: 'Неизвестный номер из телефона жертвы', show: ['vphone_open'], req: [], delay: 25, col: 'Ответ оператора', head: 'Запрос в сотовую компанию', rows: [[dd + ' ' + hm(cT - 1), `Номер ${sim2} оформлен на: ${CU.name}. SIM-карта куплена две недели назад, кроме этого звонка почти не использовалась.`, 'ev_contact', CU.id]] };
     const wiretaps = {};
     if (FE) wiretaps.fe = { target: FE.id, req: ['k_' + FE.id, 'ev_fence'], delay: 40, why: 'Нужна связь скупщика с деньгами по делу — например, его перевод подозреваемому.', calls: [{ t: dd2 + ' 18:05', a: FE.name, b: CU.name, dur: '1:12', ev: 'ev_wire', lines: [[FE.first, 'Ты зачем опять звонишь?'], [CU.first, 'Ко мне приходили из полиции. Спрашивали про ту ночь.'], [FE.first, 'И что ты сказал?'], [CU.first, `Что был${G(CU, '', 'а')} дома. Слушай, остальное я принесу на следующей неделе…`], [FE.first, 'Ничего не неси. Пусть всё уляжется. Деньги ты получил' + G(CU, '', 'а') + '.'], ['*', 'Гудки.']] }] };
 
@@ -1505,7 +1597,7 @@ window.CASES.push({
           { id: 'who', q: 'Кто имел доступ? Кто мог желать вам зла?', lines: ['Список у вас будет. Вот:', ...S.map(p => `${p.name} — ${p.role.toLowerCase()}.`), vp(['Я не хочу думать, что это кто-то из них. Но больше некому.', 'Каждому из них я доверял' + G(V, '', 'а') + '. Каждому.', 'Найдите, кто из них. Пожалуйста.'])], set: S.map(p => 'k_' + p.id), note: 'Получен список всех, кто имел доступ.' },
           { id: 'phone', q: 'Можно ваш телефон? Нужно изучить переписки.', lines: ['* ' + V.first + ' колеблется, потом протягивает телефон.', 'Берите. Мне скрывать нечего. Только верните.'], give: ['ev_vphone'], set: ['vphone_open'] },
           { id: 'conflicts', q: 'С кем у вас были конфликты в последнее время?', req: ['t_' + V.id + '_who'], lines: S.slice(0, 3).map(p => ({ debt: `${p.first} просил${G(p, '', 'а')} денег, я отказал${G(V, '', 'а')}.`, inherit: `С ${p.fins} ругались из-за завещания.`, jealous: `${p.first} ревнует меня ко всем подряд.`, business: `${p.first} хочет продать бизнес, а я против.`, exposure: `У ${p.fgen} в отчётах что-то не сходилось.`, revenge: `${p.first} — я ${G(p, 'его', 'её')} уволил${G(V, '', 'а')}.` }[p.mot])).concat([vp(['Остальное — мелочи. Наверное.', 'Но из-за такого не воруют. Или воруют?', 'Больше ничего в голову не приходит.'])]) },
-        ], present: { ev_contact: [`* ${V.first} перечитывает переписку и бледнеет.`, `${CU.first} спрашивал${G(CU, '', 'а')}, когда я уйду… Я и не подумал${G(V, '', 'а')}.`] } };
+        ], present: { ev_contact: routeA === 'call' ? [`* ${V.first} смотрит на распечатку.`, `Этот номер… Да, днём кто-то звонил, спрашивал, когда я уйду. Сказал${G(CU, '', 'а')}, что ${G(CU, 'курьер', 'курьер')}. Голос показался знакомым… Это ${CU.first}?`] : [`* ${V.first} перечитывает переписку и бледнеет.`, `${CU.first} спрашивал${G(CU, '', 'а')}, когда я уйду… Я и не подумал${G(V, '', 'а')}.`] } };
     }
     // подозреваемые
     S.forEach(p => {
@@ -1545,13 +1637,25 @@ window.CASES.push({
         if (plantOwner === p) T_.present.ev_plant = { lines: [`* ${p.first} берёт пакет с уликой и бледнеет.`, `Это моё… Но я ${G(p, 'потерял', 'потеряла')} это неделю назад! Оставил${G(p, '', 'а')} на работе, а потом не ${G(p, 'нашёл', 'нашла')}. ${CU.first} тогда ещё спрашивал${G(CU, '', 'а')}, не моё ли это.`], set: ['plant_explained'], note: `${p.name}: эта вещь пропала у ${G(p, 'него', 'неё')} неделю назад, и ${CU.first} ею интересовал${G(CU, 'ся', 'ась')}.` };
       } else {
         T_.present.ev_contact = { req: ['c_nocontact'], lie: true, lines: [`* ${p.first} смотрит на распечатку и отводит глаза.`, alive ? '…Ну спросил' + G(p, '', 'а') + ', когда уходит. Хотел' + G(p, '', 'а') + ' зайти по делу. Забыл' + G(p, '', 'а') + '.' : '…Да, написал' + G(p, '', 'а') + '. Хотел' + G(p, '', 'а') + ' поговорить. Но не поехал' + G(p, '', 'а') + '! Передумал' + G(p, '', 'а') + '.', '> Вы только что сказали, что не общались.', vp(['Перепутал' + G(p, '', 'а') + '. Нервы.', 'Забыл' + G(p, '', 'а') + '. Бывает же.', 'Я не думал' + G(p, '', 'а') + ', что это важно.', 'Ну… да. Не хотел' + G(p, '', 'а') + ', чтобы вы неправильно поняли.'])], set: ['c_lie1'], note: `${p.name} соврал${G(p, '', 'а')} об общении с ${V.ins}.` };
-        T_.present.ev_cbank = { req: ['c_claim'], lie: true, lines: [`* Пауза.`, vp([`Я… заезжал${G(p, '', 'а')} за сигаретами. Мимо проезжал${G(p, '', 'а')}. Это не преступление.`, `Ну, ${G(p, 'выходил', 'выходила')} ненадолго. В магазин. Это запрещено?`, 'Это не я. То есть я, но… я просто покупал' + G(p, '', 'а') + ' воду.', `Я ${G(p, 'забыл', 'забыла')}, что выезжал${G(p, '', 'а')}. Пять минут, не больше.`]), '> Вы сказали, что весь вечер ' + gw(p) + (trick === 'fakealibi' ? ' у друга.' : ' дома.'), '* Молчание.'], set: ['c_lie2'], note: `${p.name} ${gw(p)} рядом с местом преступления в ${hm(tMin - 14)}.` };
-        T_.present.ev_witness = [vp([`${CU.car.color[0][0].toUpperCase() + CU.car.color[0].slice(1)} «${CU.car.model[1]}»? Таких машин в городе сотни.`, 'Свидетель видел машину в темноте. Серьёзно?', 'Пол-номера — это не номер.', 'И вы на основании этого меня подозреваете?'])];
+        T_.present.ev_cbank = { req: ['c_claim'], lie: true, lines: [`* Пауза.`, vp({
+          bank: [`Я… заезжал${G(p, '', 'а')} за сигаретами. Мимо проезжал${G(p, '', 'а')}. Это не преступление.`, `Ну, ${G(p, 'выходил', 'выходила')} ненадолго. В магазин. Это запрещено?`, 'Это не я. То есть я, но… я просто покупал' + G(p, '', 'а') + ' воду.'],
+          billing: ['Вышки… Телефон мог поймать любую вышку. Хотя… ладно, я проезжал' + G(p, '', 'а') + ' мимо.', `Я ${G(p, 'выходил', 'выходила')} прогуляться. Подышать. Это теперь улика?`, 'Вы следили за моим телефоном? Ну, был' + G(p, '', 'а') + ' рядом. Недолго.'],
+          taxi: [`Я ${G(p, 'ездил', 'ездила')} к знакомому, он живёт по соседству. Это запрещено?`, 'Такси… Да, ездил' + G(p, '', 'а') + '. По личному делу. Не ваше дело, по какому.', `Ну, ${G(p, 'съездил', 'съездила')}. Хотел${G(p, '', 'а')} поговорить, но передумал${G(p, '', 'а')} и ${G(p, 'ушёл', 'ушла')}.`],
+          tcard: ['Автобус? Я… каталась по городу. Не спалось.'.replace('каталась', G(p, 'катался', 'каталась')), `Я ${G(p, 'был', 'была')} там по делам. Какая разница, на чём ${G(p, 'ехал', 'ехала')}?`, 'Карту могли украсть. Ну… нет, это я. Но я ничего не делал' + G(p, '', 'а') + '.'],
+          plate: ['Это главная улица, там все ездят.', `Да, проезжал${G(p, '', 'а')}. Мимо. Не останавливал${G(p, 'ся', 'ась')}.`, 'Камера… Ну и что, что машина моя? За рулём мог быть кто угодно.'],
+        }[routeB]), '> Вы сказали, что весь вечер ' + gw(p) + (trick === 'fakealibi' ? ' у друга.' : ' дома.'), '* Молчание.'], set: ['c_lie2'], note: `${p.name} ${gw(p)} рядом с местом преступления в ${hm(bTime)}.` };
+        T_.present.ev_witness = [vp({
+          car: [`${CU.car.color[0][0].toUpperCase() + CU.car.color[0].slice(1)} «${CU.car.model[1]}»? Таких машин в городе сотни.`, 'Свидетель видел машину в темноте. Серьёзно?', 'Пол-номера — это не номер.'],
+          voice: ['Голос? Вы серьёзно? Таких голосов тысячи.', 'Мало ли кто там ругался. Я тут при чём?', 'Свидетель слышал голос через стену — и это ваша улика?'],
+          foot: ['Капюшоны носит полгорода.', 'Кто-то ушёл на остановку. И как это связано со мной?', 'Тёмная куртка. Отличная примета.'],
+          taxi: ['Такси «Мигом» — их в городе сотни.', 'Кто-то вышел из такси. И что?', 'Вы знаете, сколько людей ездит на такси вечером?'],
+        }[witKind])];
         T_.present[trickEv] = trick === 'plant' ? ['Это не моё. При чём тут я?'] : trick === 'stage' ? ['Я в этом ничего не понимаю.'] : trick === 'fakealibi' ? { lines: [`* ${p.first} закрывает лицо руками.`, 'Значит, ' + G(FR, 'он', 'она') + ' сказал' + G(FR, '', 'а') + '…'], set: ['c_cracks'] } : ['И что? Да, это я вызвал' + G(p, '', 'а') + '. Любой бы так сделал.'];
+        if (ev['ev_eve_' + p.id]) T_.present['ev_eve_' + p.id] = [vp(['Да, писал' + G(p, '', 'а') + '. Я и был' + G(p, '', 'а') + ' дома. Что тут такого?', 'Ну написал' + G(p, '', 'а') + ', и что? Так и было.', 'Да. Сказал' + G(p, '', 'а') + ', что дома. Это правда.'])];
         if (buyEv) T_.present[buyEv] = ['Купил' + G(p, '', 'а') + ' для дома. Это законно.'];
-        T_.present.ev_cmsg = { req: ['detained'], lines: [`* ${p.first} смотрит на восстановленные данные.`, vp(['Вы… и это нашли.', 'Я же всё удалил' + G(p, '', 'а') + '…', 'Откуда?.. Это невозможно.', 'Ладно. Хватит. Я устал' + G(p, '', 'а') + ' врать.'])], set: ['c_broken'] };
+        if (catchBy === 'phone') T_.present.ev_cmsg = { req: ['detained'], lines: [`* ${p.first} смотрит на восстановленные данные.`, vp(['Вы… и это нашли.', 'Я же всё удалил' + G(p, '', 'а') + '…', 'Откуда?.. Это невозможно.', 'Ладно. Хватит. Я устал' + G(p, '', 'а') + ' врать.'])], set: ['c_broken'] };
         if (wireEv) T_.present[wireEv] = { req: ['detained'], lines: ['* Из динамика звучит ' + G(p, 'его', 'её') + ' собственный голос.', 'Выключите. Я всё расскажу.'], set: ['c_broken'] };
-        T_.present.ev_chome = { req: ['detained'], lines: ['* Вы кладёте на стол фото находки при обыске.', vp(['Я… это не то, что вы думаете.', 'Это подбросили. Мне подбросили!', 'Без адвоката я об этом говорить не буду.', 'Вы рылись в моих вещах…'])], set: ['c_cracks'] };
+        T_.present.ev_chome = catchBy === 'search' ? { req: ['detained'], lines: ['* Вы кладёте на стол фото находки при обыске.', `* ${p.first} долго смотрит на снимок.`, vp(['Я хотел' + G(p, '', 'а') + ' это выбросить. Не успел' + G(p, '', 'а') + '.', 'Значит, нашли… Ладно.', 'Я знал' + G(p, '', 'а') + ', что надо было избавиться от этого.'])], set: ['c_broken'] } : { req: ['detained'], lines: ['* Вы кладёте на стол фото находки при обыске.', vp(['Я… это не то, что вы думаете.', 'Это подбросили. Мне подбросили!', 'Без адвоката я об этом говорить не буду.', 'Вы рылись в моих вещах…'])], set: ['c_cracks'] };
         T_.presentFlags.push({ req: ['trace_match', 'detained'], ev: 'ev_sample', lines: [`* Заключение: след «${trace[0]}» оставил${G(p, '', 'а')} ${p.name}.`, `${p.first} долго молчит.`, vp(['Хорошо. Я расскажу.', 'Ладно. Ваша взяла.', 'Я больше не могу это носить в себе.', 'Выключите диктофон… Хотя нет. Пишите.', 'Значит, всё. Слушайте.'])], set: ['c_broken'] });
         const motConf = {
           debt: `Мне нужны были деньги. ${sumDebt}. Меня обещали покалечить, понимаете? ${V.first} отказал${G(V, '', 'а')}. Опять.`,
@@ -1570,8 +1674,11 @@ window.CASES.push({
     // c_broken также от трещин: два признака + задержание
     // свидетели
     talk[W1.id] = { intro: [`* ${W1.name}, ${W1.role.toLowerCase()}.`, vp(['Да, я кое-что видел' + G(W1, '', 'а') + '. Спрашивайте.', 'Наконец-то! Я ждал' + G(W1, '', 'а') + ', когда кто-нибудь спросит.', 'Я не люблю лезть в чужие дела. Но тут — скажу.', 'Видел' + G(W1, '', 'а') + ' я машину. Странную.', 'Вы насчёт той ночи? Да, было кое-что.'])], topics: [
-      { id: 'night', q: `Что вы видели ${dateS} вечером?`, lines: [`Около ${hm(tMin - 10)} к ${pl.dat} подъехала машина. ${CU.car.color[0][0].toUpperCase() + CU.car.color[0].slice(1)}, похоже «${CU.car.model[1]}».`, '> Номер запомнили?', `${vp(['Начало только', 'Первые знаки помню', 'Запомнил' + G(W1, '', 'а') + ' кусочек'])}: «${plate2}». ${vp(['Дальше не разглядел' + G(W1, '', 'а') + '.', 'Остальное грязью заляпано было.', 'Фонарь светил прямо в глаза.'])} ${vp([`А около ${hm(tMin + 12)} она уехала — резко, с визгом.`, `Уехала около ${hm(tMin + 12)}, фары даже не включив сразу.`, `В ${hm(tMin + 12)} или около того — сорвалась с места.`])}`], give: ['ev_witness'], note: `Свидетель: ${CU.car.color[0]} «${CU.car.model[1]}», номер на «${plate2}», с ${hm(tMin - 10)} до ${hm(tMin + 12)}.` },
-      { id: 'who', q: 'Видели, кто был за рулём?', req: ['t_' + W1.id + '_night'], lines: [`Темно было. ${CU.f ? 'Кажется, женщина' : 'Вроде мужчина'}, в тёмной куртке. Лица не видел${G(W1, '', 'а')}.`] },
+      ...(witKind === 'car' ? [{ id: 'night', q: `Что вы видели ${dateS} вечером?`, lines: [`Около ${hm(tMin - 10)} к ${pl.dat} подъехала машина. ${CU.car.color[0][0].toUpperCase() + CU.car.color[0].slice(1)}, похоже «${CU.car.model[1]}».`, '> Номер запомнили?', `${vp(['Начало только', 'Первые знаки помню', 'Запомнил' + G(W1, '', 'а') + ' кусочек'])}: «${plate2}». ${vp(['Дальше не разглядел' + G(W1, '', 'а') + '.', 'Остальное грязью заляпано было.', 'Фонарь светил прямо в глаза.'])} ${vp([`А около ${hm(tMin + 12)} она уехала — резко, с визгом.`, `Уехала около ${hm(tMin + 12)}, фары даже не включив сразу.`, `В ${hm(tMin + 12)} или около того — сорвалась с места.`])}`], give: ['ev_witness'], note: `Свидетель: ${CU.car.color[0]} «${CU.car.model[1]}», номер на «${plate2}», с ${hm(tMin - 10)} до ${hm(tMin + 12)}.` },
+      { id: 'who', q: 'Видели, кто был за рулём?', req: ['t_' + W1.id + '_night'], lines: [`Темно было. ${CU.f ? 'Кажется, женщина' : 'Вроде мужчина'}, в тёмной куртке. Лица не видел${G(W1, '', 'а')}.`] }] : [
+      { id: 'night', q: `Что вы видели ${dateS} вечером?`, lines: [witDesc.replace(/^Около/, vp(['Значит, так. Около', 'Помню точно: около', 'Было это около'])) ], give: ['ev_witness'], note: { voice: `Свидетель слышал ${CU.f ? 'женский' : 'мужской'} голос около ${hm(tMin - 6)}.`, foot: `Свидетель: около ${hm(tMin + 8)} ${CU.f ? 'женщина' : 'мужчина'} в капюшоне ушёл${G(CU, '', 'а')} к остановке.`, taxi: `Свидетель: около ${hm(tMin - 15)} из такси «Мигом» вышел${G(CU, '', 'а')} ${CU.f ? 'женщина' : 'мужчина'}.` }[witKind] },
+      { id: 'who', q: 'Лицо разглядели?', req: ['t_' + W1.id + '_night'], lines: [vp([`Нет. ${witKind === 'voice' ? 'Я же только слышал' + G(W1, '', 'а') + '.' : 'Темно было, капюшон.'} Но ${CU.f ? 'это точно была женщина' : 'это точно был мужчина'}${witKind === 'voice' ? '' : ', ' + (CU.age < 40 ? 'двигал' + G(CU, 'ся', 'ась') + ' легко, молод' + G(CU, 'ой', 'ая') : 'не очень молод' + G(CU, 'ой', 'ая'))}.`, `Лица — нет. Только что ${CU.f ? 'женщина' : 'мужчина'}. ${CU.age < 40 ? 'Скорее молод' + G(CU, 'ой', 'ая') + '.' : 'Не юн' + G(CU, 'ый', 'ая') + ', по походке.'}`])] },
+      ]),
     ], present: {} };
     talk[W2.id] = { intro: [`* ${W2.name}, ${W2.role.toLowerCase()}.`, vp(['Я уже говорил' + G(W2, '', 'а') + ' с участковым, но он ничего не записал.', 'Ох, ну и ночка была…', 'Я не уверен' + G(W2, '', 'а') + ', что это важно, но слушайте.', 'Вы первый, кто спросил по-человечески.', 'Я спал' + G(W2, '', 'а') + ' плохо в ту ночь. Поэтому и услышал' + G(W2, '', 'а') + '.'])], topics: [
       { id: 'night', q: 'Что вы слышали или видели в ту ночь?', lines: [ev.ev_witness2.desc], give: ['ev_witness2'], note: 'Время преступления подтверждено свидетелем.' },
@@ -1589,7 +1696,7 @@ window.CASES.push({
     if (FE) talk[FE.id] = { intro: ['* За бронированным стеклом — хмурый мужчина.', 'Полиция? Лицензия на стене. Чем обязан?'], topics: [
       { id: 'know', q: `Вы знаете ${CU.acc}?`, lines: ['Первый раз слышу.'], set: ['fe_deny'] },
       { id: 'buy', q: `Вы покупали ${loot.split(' (')[0]}?`, lines: ['Я покупаю только по документам. Всё в журнале.'] },
-    ], present: { ev_fence: { req: ['fe_deny'], lie: true, lines: ['* Скупщик хмурится.', `Ну, переводил. За… за старое золото. Законно.`, '> Где запись в журнале?', '* Молчание.'] }, ev_wire: ['Без адвоката ни слова.'], ev_cmsg: ['Без адвоката ни слова.'] } };
+    ], present: { ev_fence: { req: ['fe_deny'], lie: true, lines: ['* Скупщик хмурится.', `Ну, переводил. За… за старое золото. Законно.`, '> Где запись в журнале?', '* Молчание.'] }, ev_wire: ['Без адвоката ни слова.'], ...(ev.ev_cmsg ? { ev_cmsg: ['Без адвоката ни слова.'] } : {}) } };
 
     // ---------- манера речи: украшаем первую реплику ответа ----------
     const decorate = (pid, lines) => {
@@ -1611,7 +1718,7 @@ window.CASES.push({
     const actions = {};
     const why = 'Громов: «Оснований для задержания нет. Нужны доказательства: контакт с жертвой перед преступлением и ещё хотя бы одна улика, которая ставит человека на место — оплата картой рядом или ложное алиби».';
     S.forEach(p => {
-      actions['det_' + p.id] = { label: `Задержать: ${p.name}`, person: p.id, req: p === CU ? ['ev_contact', ['ev_cbank', 'ev_friend_lie']] : ['__never'], grounds: p === CU ? [['ev_contact'], ['ev_cbank', 'ev_friend_lie']] : [['ev_eve_' + p.id], ['__none']], why: p !== CU && has0('alibi_' + p.id) ? why : why, done: p === CU ? ['detained'] : ['__never'], give: p === CU ? ['ev_cphone', 'ev_sample'] : [], note: `${p.name} задержан${G(p, '', 'а')}.` };
+      actions['det_' + p.id] = { label: `Задержать: ${p.name}`, person: p.id, req: p === CU ? [['ev_contact', 'ev_eve_' + CU.id], ['ev_cbank', 'ev_friend_lie']] : ['__never'], grounds: p === CU ? [['ev_contact', 'ev_eve_' + CU.id].filter(e => ev[e]), ['ev_cbank', 'ev_friend_lie']] : [['ev_eve_' + p.id], ['__none']], why: p !== CU && has0('alibi_' + p.id) ? why : why, done: p === CU ? ['detained'] : ['__never'], give: p === CU ? ['ev_cphone', 'ev_sample'] : [], note: `${p.name} задержан${G(p, '', 'а')}.` };
     });
     function has0() { return false; }
 
@@ -1622,14 +1729,14 @@ window.CASES.push({
       { id: 'm_start', req: [], delay: 1, from: 'gromov', call: true, lines: [
         ['Громов', `Новое дело. ${{ murder: 'Убийство', poison: 'Отравление', theft: 'Кража', arson: 'Поджог' }[crime]}: ${pl.nom}, ${addr}. ${alive ? 'Пострадавш' + G(V, 'ий', 'ая') + ' — ' : 'Жертва — '}${V.name}, ${V.role}.`],
         ['Громов', alive ? `${V.first} ждёт тебя. Поговори, узнай, у кого был доступ.` : `${rp.name} ${crime === 'murder' ? G(rp, 'нашёл', 'нашла') + ' тело' : 'вызвал' + G(rp, '', 'а') + ' помощь'}. Начни с места происшествия.`],
-        ['Громов', 'Выезжай. Улики — Соколовой, телефоны — Ким, выписки — через банк. И помни: врать тебе будут многие, и не только виновный. У каждого свои секреты — ищи, где слова не сходятся с фактами, и выясняй почему.'],
+        ['Громов', 'Выезжай. Улики — Соколовой, телефоны — Ким, выписки — через банк, операторы, такси и камеры — в разделе «Запросы». И помни: врать тебе будут многие, и не только виновный. У каждого свои секреты — ищи, где слова не сходятся с фактами, и выясняй почему.'],
         ['>', 'Понял. Выезжаю.'],
       ] },
       { id: 'm_lab', req: ['v_scene', '!lab_any'], delay: 40, from: 'vera', text: 'Привет! Всё, что найдёшь на месте, отправляй мне через «Улики» → «На экспертизу».' },
       { id: 'm_open', req: ['vphone_open'], delay: 3, from: 'liza', text: `Пробила номера из телефона ${V.fgen}: ${S.map(p => p.name).join(', ')}. Добавила в дело. Выписки можно запрашивать.`, set: S.map(p => 'k_' + p.id) },
       { id: 'm_contact', req: [['c_lie1', 'c_lie2', 'ev_friend_lie']], delay: 3, from: 'gromov', call: true, lines: [['Громов', 'Слышал, кто-то из подозреваемых тебе соврал. В этом городе за ложь на допросе отвечают отдельно — значит, есть что скрывать.'], ['Громов', 'Но ложь — ещё не преступление. Проверь всех до конца и собери основания.'], ['>', 'Понял.']] },
       { id: 'm_det', req: ['detained'], delay: 3, from: 'gromov', call: true, lines: [['Громов', `${CU.name} в изоляторе. Телефон у Ким, образец у Соколовой, обыск разрешён — адрес на карте.`], ['Громов', 'Дожимай. Нужно признание или железная экспертиза.'], ['>', 'Сделаю.']] },
-      { id: 'm_cph', req: ['cphone_open'], delay: 2, from: 'liza', text: `Телефон ${CU.fgen} вскрыт. Кое-что удалено — восстановила. Смотри «Телефоны».` },
+      { id: 'm_cph', req: ['cphone_open'], delay: 2, from: 'liza', text: catchBy === 'phone' ? `Телефон ${CU.fgen} вскрыт. Кое-что удалено — восстановила. Смотри «Телефоны».` : `Телефон ${CU.fgen} вскрыт. Удалённого почти нет — ${G(CU, 'он', 'она')} сбросил${G(CU, '', 'а')} историю, восстановить не вышло. Ищи другие доказательства.` },
       { id: 'm_fin', req: ['confession'], delay: 4, from: 'gromov', call: true, lines: [['Громов', 'Признание есть. Отличная работа.'], ['Громов', 'Оформляй обвинение в разделе «Дело». Отбери самые сильные улики для суда.'], ['>', 'Есть.']] },
     ];
     if (!alive) messages.push({ id: 'm_pin', req: ['ev_vphone', '!vphone_open'], delay: 45, from: 'liza', text: 'Телефон жертвы могу вскрыть, но это минута-полторы. Или попробуй PIN сам — люди ставят важные даты.' });
@@ -1672,7 +1779,7 @@ window.CASES.push({
         { q: 'Каков мотив?', opts: shuffle(motOpts).map(m => [m, motLabel(m)]), correct: CU.mot, w: 20 },
         { q: 'Как преступник пытался запутать следствие?', opts: shuffle(Object.keys(trickLabels)).map(k => [k, trickLabels[k]]), correct: trick, w: 20 },
       ],
-      keyEvidence: ['ev_contact', 'ev_witness', 'ev_cbank', 'ev_sample', 'ev_cmsg', 'ev_chome', trickEv, buyEv, fenceEv, wireEv, 'ev_trace'].filter(Boolean),
+      keyEvidence: ['ev_contact', 'ev_witness', 'ev_cbank', catchBy === 'dna' ? 'ev_sample' : null, catchBy === 'phone' ? 'ev_cmsg' : null, 'ev_chome', trickEv, buyEv, fenceEv, wireEv, catchBy === 'dna' ? 'ev_trace' : null].filter(e => e && ev[e]),
       bonusFlags: Object.assign({ confession: 'Признание преступника', trace_match: 'Экспертиза совпала' }, Object.fromEntries(INN.map(p => ['alibi_' + p.id, 'Проверено алиби: ' + p.name]))),
       epilogue: [
         `${CU.name} предстанет перед судом. ${{ debt: 'Долги, из-за которых всё началось, так и остались неоплаченными.', inherit: 'Наследства ' + G(CU, 'он', 'она') + ' не получит.', jealous: 'Ревность разрушила две жизни.', business: 'Бизнес, за который ' + G(CU, 'он', 'она') + ' боролся, уйдёт с молотка.', exposure: 'Растраченные деньги частично вернут.', revenge: 'Месть оказалась дороже любой обиды.' }[CU.mot]}`,
@@ -1703,21 +1810,23 @@ window.CASES.push({
       id: 'g' + num, num: num + 1, gen: GEN_VER, title, subtitle, date: `${WDAYS[wd]}, ${nextS}`, diff,
       intro: [
         { murder: `${dateS}, поздний вечер. ${V.name}, ${V.role}, найден${G(V, '', 'а')} мёртв${G(V, 'ым', 'ой')} в ${pl.prep}. Тот, кто это сделал, ${G(V, 'его', 'её')} знал: дверь не взломана, а удар нанесён сзади.`, poison: `${dateS}. ${V.name}, ${V.role}, в реанимации: отравление. Яд был в бокале — значит, отравитель сидел за одним столом.`, theft: `В ночь на ${nextS} из ${pl.gen} украли ${loot}. Сейф не взломан, а открыт кодом.`, arson: `${dateS}, ночь. ${pl.nom[0].toUpperCase() + pl.nom.slice(1)} горит. Пожарные уверены: это поджог.` }[crime],
-        `Под подозрением пятеро — у каждого своя причина и своя тайна. Все будут говорить правду. Но не всю.`,
+        `Под подозрением пятеро — у каждого своя причина и своя тайна. Кто-то лжёт, чтобы скрыть преступление, кто-то — чтобы скрыть собственный секрет.`,
       ],
       people: pp, start: known0.concat(['ev_report', 'ev_autopsy']),
-      tasks, locations, evidence: ev, phones, bank, wiretaps, actions, messages, talk, summon, accuse, status,
-      _meta: { crime, trick, culprit: CU.id, mot: CU.mot, setting: ST.id, pin: alive ? null : pinDate.pin },
+      tasks, locations, evidence: ev, phones, bank, records, wiretaps, actions, messages, talk, summon, accuse, status,
+      _meta: { crime, trick, culprit: CU.id, mot: CU.mot, setting: ST.id, pin: alive ? null : pinKind === 'year' ? String(foundY) : pinDate.pin, routeA, routeB, catchBy, witKind, pinKind },
     };
   }
 
+  const EXTRA_TITLES = ['Двойное дно', 'Тихий омут', 'Чужие ключи', 'Без пяти полночь', 'Последний вечер', 'Чёрный ход', 'Слепое пятно', 'Холодный след', 'Ночная смена', 'Пустой стул', 'Третий лишний', 'Невидимка', 'Чужая тень', 'Глухая стена', 'Мёртвый сезон', 'Фальшивая нота', 'Задняя дверь', 'Свой человек', 'Красная нить', 'Тонкий лёд', 'Шахматная партия', 'Обратный отсчёт', 'Тень на стене', 'Под замком', 'Цена молчания', 'Старые счёты', 'Ложный след', 'Камень в кармане', 'Чужая подпись', 'Пепел и правда', 'Вчерашний день', 'Чистые руки', 'Дым без огня', 'Последний свидетель', 'Ключ под ковриком', 'Ход конём', 'Немая сцена', 'Узкий круг', 'Лишний билет', 'Час волка', 'Петля', 'Сломанный замок', 'Минута тишины', 'Чужой зонт', 'Заметки на полях', 'Карточный домик', 'Тёмная вода', 'Бумажный след', 'Белая ворона', 'Нулевой километр', 'Счёт до трёх', 'Запасной выход', 'Пятый ключ', 'Сквозняк', 'Ночной звонок', 'Поздний гость', 'Шрам', 'Пустая рамка', 'Последний автобус', 'Стеклянный дом', 'Неотправленное письмо', 'Горький осадок', 'Цепная реакция', 'Чужая роль', 'Второй план', 'Ноль на счету', 'Глаза в темноте', 'Свет в окне', 'Опасная близость', 'Кривое зеркало'];
   function genAll(n) {
     const out = [];
     const seen = {};
+    let k = 0;
     for (let i = 1; i <= n; i++) {
       const c = genCase(i);
-      seen[c.title] = (seen[c.title] || 0) + 1;
-      if (seen[c.title] > 1) c.title += ' ' + ['II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'][seen[c.title] - 2];
+      if (seen[c.title]) { while (seen[EXTRA_TITLES[k % EXTRA_TITLES.length]]) k++; c.title = EXTRA_TITLES[k % EXTRA_TITLES.length]; k++; }
+      seen[c.title] = 1;
       out.push(c);
     }
     return out;
@@ -1854,19 +1963,22 @@ window.CASES.push({
   // ---------- состояние дела ----------
   let C = null, S = null;
   function newState(c) {
-    return { flags: {}, ev: [], evNew: {}, labs: {}, bankReq: {}, tech: {}, wire: {}, queue: [], fired: {}, inbox: [], journal: [], tlog: {}, lies: {}, presented: {}, spots: {}, notes: '', play: 0, view: 'case', pplNew: {}, pins: {}, accused: null, started: Date.now() };
+    return { flags: {}, ev: [], evNew: {}, labs: {}, bankReq: {}, recReq: {}, tech: {}, wire: {}, queue: [], fired: {}, inbox: [], journal: [], tlog: {}, lies: {}, presented: {}, spots: {}, notes: '', play: 0, view: 'case', pplNew: {}, pins: {}, accused: null, started: Date.now() };
   }
+  function caseSt(c) { const s2 = SAVE.cases[c.id]; return s2 && (s2.gen || 0) === (c.gen || 0) ? s2 : null; }
   function openCase(id, fresh) {
     C = CASES.find(c => c.id === id);
     if (SAVE.cases[id] && (SAVE.cases[id].gen || 0) !== (C.gen || 0)) { delete SAVE.cases[id]; toast('Дело обновилось в новой версии игры — начато заново.'); }
     if (fresh || !SAVE.cases[id]) {
       SAVE.cases[id] = newState(C); SAVE.cases[id].gen = C.gen || 0;
       S = SAVE.cases[id];
+      S.recReq = S.recReq || {};
       C.start.forEach(f => { if (C.evidence[f]) give(f, true); else setFlag(f, true); });
       checkTriggers();
       persist();
     }
     S = SAVE.cases[id];
+    S.recReq = S.recReq || {};
     renderDesk();
     startTick();
   }
@@ -1956,6 +2068,12 @@ window.CASES.push({
       journal(`Техотдел разблокировал: ${ph.title}`);
       S.inbox.unshift({ id: 'tech_' + q.id, from: 'liza', time: clock(), read: false, text: `${ph.title} разблокирован${ph.chats.some(c => c.restored) ? ', удалённые данные восстановлены' : ''}. Раздел «Телефоны».` });
       snd('msg'); toast(`📱 Разблокирован: <b>${esc(ph.title)}</b>`);
+    } else if (q.type === 'rec') {
+      S.recReq = S.recReq || {}; S.recReq[q.id].done = true;
+      const r = C.records[q.id];
+      journal(`Получен ответ: ${r.title}`);
+      S.inbox.unshift({ id: 'rec_' + q.id, from: 'liza', time: clock(), read: false, text: `Пришёл ответ: ${r.title}. Раздел «Запросы».` });
+      snd('msg'); toast(`📡 Пришёл ответ: <b>${esc(r.title)}</b>`);
     } else if (q.type === 'wire') {
       S.wire[q.id].done = true;
       journal(`Получены записи прослушки: ${C.people[C.wiretaps[q.id].target].name}`);
@@ -1964,7 +2082,7 @@ window.CASES.push({
     }
     checkTriggers();
     updateBadges();
-    if (['lab', 'bank', 'tech', 'wire'].includes(q.type)) refreshIf(q.type === 'lab' ? 'evidence' : q.type === 'bank' ? 'bank' : q.type === 'tech' ? 'phones' : 'wire');
+    if (['lab', 'bank', 'tech', 'wire', 'rec'].includes(q.type)) refreshIf(q.type === 'lab' ? 'evidence' : q.type === 'bank' ? 'bank' : q.type === 'tech' ? 'phones' : q.type);
   }
   function refreshIf(v) { if (S.view === v && !$('.ov')) renderView(); }
 
@@ -1978,7 +2096,7 @@ window.CASES.push({
   // ---------- рабочий стол ----------
   const NAV = [
     ['case', '📁', 'Дело'], ['map', '🗺️', 'Выезд'], ['people', '👥', 'Люди'], ['db', '🗄️', 'База данных'],
-    ['evidence', '🧪', 'Улики'], ['phones', '📱', 'Телефоны'], ['bank', '🏦', 'Финансы'], ['wire', '🎧', 'Прослушка'], ['journal', '📓', 'Журнал'],
+    ['evidence', '🧪', 'Улики'], ['phones', '📱', 'Телефоны'], ['bank', '🏦', 'Финансы'], ['rec', '📡', 'Запросы'], ['wire', '🎧', 'Прослушка'], ['journal', '📓', 'Журнал'],
   ];
   const BADGE_SVG = `<svg viewBox="0 0 120 120"><defs><linearGradient id="lgx" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f7dd9d"/><stop offset=".6" stop-color="#c8933d"/><stop offset="1" stop-color="#8c6422"/></linearGradient></defs><path d="M60 4 L106 21 Q108 71 60 117 Q12 71 14 21Z" fill="url(#lgx)" stroke="#5c4215" stroke-width="3"/><path d="M60 15 L96 28 Q97 68 60 105 Q23 68 24 28Z" fill="#141922"/><path d="M60 32 L86 53 L81 53 L81 78 L39 78 L39 53 L34 53Z" fill="url(#lgx)"/><rect x="54" y="61" width="12" height="17" fill="#141922"/><path d="M60 84 L62.5 90 L69 90 L64 94 L66 100 L60 96.5 L54 100 L56 94 L51 90 L57.5 90Z" fill="url(#lgx)"/></svg>`;
 
@@ -2007,6 +2125,7 @@ window.CASES.push({
     const ib = S.inbox.filter(m => !m.read).length; const bi = $('#bd_inbox'); if (bi) { bi.style.display = ib ? '' : 'none'; bi.textContent = ib; }
     set('phones', Object.keys(C.phones).filter(k => req(C.phones[k].req) && !S['seen_ph_' + k]).length);
     set('bank', Object.keys(S.bankReq).filter(k => S.bankReq[k].done && !S.bankReq[k].seen).length);
+    { const nr = $('.nav[data-v="rec"]'); if (nr) nr.style.display = Object.keys(C.records || {}).length ? '' : 'none'; } { set('rec', Object.keys(S.recReq || {}).filter(k => S.recReq[k].done && !S.recReq[k].seen).length); }
     set('wire', Object.keys(S.wire).filter(k => S.wire[k].done && !S.wire[k].seen).length);
     set('case', C.tasks.filter(t => req(t.req) && !req(t.done)).length, true);
     set('map', C.locations.filter(l => req(l.req) && !has('v_' + l.id)).length, true);
@@ -2020,6 +2139,7 @@ window.CASES.push({
       if (q.type === 'bank') items.push(`🏦 Банк: ${C.people[C.bank[q.id].owner].name.split(' ')[0]} ${rest(q)}с`);
       if (q.type === 'tech') items.push(`📱 Техотдел ${rest(q)}с`);
       if (q.type === 'wire') items.push(`🎧 Прослушка ${rest(q)}с`);
+      if (q.type === 'rec') items.push(`📡 ${C.records[q.id].short || 'Запрос'} ${rest(q)}с`);
     });
     el.innerHTML = items.slice(0, 4).map(t => `<span class="chip"><span class="spin"></span>${esc(t)}</span>`).join('');
   }
@@ -2028,7 +2148,7 @@ window.CASES.push({
     document.querySelectorAll('.nav[data-v]').forEach(b => b.classList.toggle('on', b.dataset.v === S.view));
     const el = $('#content'); if (!el) return;
     el.scrollTop = 0;
-    ({ case: vCase, map: vMap, people: vPeople, db: vDB, evidence: vEvidence, phones: vPhones, bank: vBank, wire: vWire, journal: vJournal })[S.view](el);
+    ({ case: vCase, map: vMap, people: vPeople, db: vDB, evidence: vEvidence, phones: vPhones, bank: vBank, rec: vRec, wire: vWire, journal: vJournal })[S.view](el);
     updateBadges();
   }
 
@@ -2156,10 +2276,10 @@ window.CASES.push({
     const al = has('alibi_' + pid0(p));
     let t;
     if (!okA && !okB) t = `Из твоих бумаг не видно ни что ${esc(p.name)} связывал${sx} с потерпевшей стороной перед преступлением, ни что ${bl} на месте. Посмотри, какие улики касаются именно этого человека.`;
-    else if (!okA) t = `Что ${esc(p.name)} ${bl} рядом с местом — допустим. Но где связь с потерпевшей стороной перед преступлением? Переписка, звонок — что-то, где фигурирует именно ${p.f ? 'она' : 'он'}.`;
-    else if (!okB) t = `Контакт с потерпевшей стороной — вижу. Но общаться — не преступление. Что доказывает, что ${p.f ? 'она' : 'он'} ${p.f ? 'была' : 'был'} на месте в тот вечер? Оплата рядом, ложное алиби?`;
+    else if (!okA) t = `Что ${esc(p.name)} ${bl} рядом с местом — допустим. Но где связь с потерпевшей стороной перед преступлением? Переписка, звонок, запись — что-то, где фигурирует именно ${p.f ? 'она' : 'он'}.`;
+    else if (!okB) t = `Контакт с потерпевшей стороной — вижу. Но общаться — не преступление. Что доказывает, что ${p.f ? 'она' : 'он'} ${p.f ? 'была' : 'был'} на месте в тот вечер? Оплата, геолокация, поездка, камера, ложное алиби?`;
     else t = `Бумаги вроде есть, но картинка не складывается. Проверь ещё раз алиби и показания — что-то здесь не так.`;
-    if (!okB && picks0.includes('ev_witness')) t += ' Свидетель видел только машину — по ней одной человека на место не поставишь.';
+    if (!okB && picks0.includes('ev_witness')) t += ' Показаний свидетеля мало: по ним одним конкретного человека на место не поставишь.';
     if (al) t += ` И учти: ${p.f ? 'её' : 'его'} алиби подтверждено.`;
     return t;
   }
@@ -2171,13 +2291,11 @@ window.CASES.push({
     const ov = overlay('<div class="modal" id="dm" style="width:min(900px,94vw)"></div>');
     const draw = () => {
       const m = $('#dm');
-      const pk0 = m.querySelector('.picker'), sc = pk0 ? pk0.scrollTop : 0, msc = m.scrollTop;
       m.innerHTML = `<div class="tag red">ЗАПРОС НА ЗАДЕРЖАНИЕ</div><h2 style="margin-top:8px">${esc(p.name)}</h2>
-        <p class="hint" style="line-height:1.55">Громов подпишет задержание, только если улики докажут две вещи: <b>1)</b> именно этот человек связывался с потерпевшей стороной незадолго до преступления (переписка, звонок); <b>2)</b> именно его можно поставить на место преступления (оплата картой рядом, разоблачённое ложное алиби, опознание). Ложь на допросе сама по себе — не основание. Выберите до 4 улик. Каждый отклонённый запрос снижает итоговую оценку.</p>
-        <div class="picker">${S.ev.map(id => `<div class="ev ${picks.includes(id) ? 'sel' : ''}" data-e="${id}"><div class="i">${C.evidence[id].icon}</div><div><b>${esc(C.evidence[id].name)}</b><small>${esc(C.evidence[id].desc)}</small></div></div>`).join('')}</div>
-        <div class="row"><span class="hint" style="margin-right:auto">Выбрано: ${picks.length}/4${S.badDetain ? ` · отклонённых запросов: ${S.badDetain}` : ''}</span><button class="btn" id="dc">Отмена</button><button class="btn red" id="dg">🚔 Отправить Громову</button></div>`;
-      const pk1 = m.querySelector('.picker'); if (pk1) pk1.scrollTop = sc; m.scrollTop = msc;
-      m.querySelectorAll('[data-e]').forEach(d => d.onclick = () => { const id = d.dataset.e; if (picks.includes(id)) picks = picks.filter(x => x !== id); else if (picks.length < 4) picks.push(id); draw(); });
+        <p class="hint" style="line-height:1.55">Громов подпишет задержание, только если улики докажут две вещи: <b>1)</b> именно этот человек связывался с потерпевшей стороной незадолго до преступления (переписка, звонок, запись); <b>2)</b> именно его можно поставить на место преступления (оплата картой, геолокация телефона, поездка, камера рядом с местом, разоблачённое ложное алиби). Ложь на допросе сама по себе — не основание. Выберите до 4 улик. Каждый отклонённый запрос снижает итоговую оценку.</p>
+        <div class="pickwrap">${pickerHTML(picks)}</div>
+        <div class="row"><span class="hint" style="margin-right:auto"><span id="pcnt">Выбрано: ${picks.length}/4</span>${S.badDetain ? ` · отклонённых запросов: ${S.badDetain}` : ''}</span><button class="btn" id="dc">Отмена</button><button class="btn red" id="dg">🚔 Отправить Громову</button></div>`;
+      bindPicker(m, picks, 4);
       m.querySelector('#dc').onclick = closeOv;
       m.querySelector('#dg').onclick = () => {
         if (!picks.length) { toast('Выберите улики-основания', 'err'); return; }
@@ -2353,6 +2471,34 @@ window.CASES.push({
     updateBadges();
   }
 
+  // ---------- ЗАПРОСЫ (оператор связи, такси, камеры, транспорт) ----------
+  let RK = null;
+  function recVisible(r) { return r.show ? req(r.show) : r.owner ? has('k_' + r.owner) : true; }
+  function vRec(el) {
+    S.recReq = S.recReq || {};
+    const keys = Object.keys(C.records || {}).filter(k => recVisible(C.records[k]));
+    el.innerHTML = `<div class="fade"><h2 class="h2">Запросы и ориентировки</h2><p class="hint">Операторы связи, службы такси, дорожные камеры, транспортные карты. Каждый запрос нужно обосновать — без оснований откажут.</p>
+      ${keys.length ? '' : '<div class="card">Пока запрашивать нечего. Новые возможности появятся по ходу расследования.</div>'}
+      <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(250px,1fr));margin-bottom:20px">${keys.map(k => { const r = C.records[k], R = S.recReq[k]; return `<div class="card click" data-r="${k}" style="${RK === k ? 'border-color:var(--gold)' : ''}"><b>${r.icon || '📡'} ${esc(r.title)}</b><div class="hint" style="margin:4px 0 8px">${esc(r.sub || '')}</div>${R ? (R.done ? `<span class="tag green">ответ получен</span>${!R.seen ? '<span class="newdot"></span>' : ''}` : '<span class="tag blue">запрос отправлен…</span>') : '<span class="tag gold">запросить</span>'}</div>`; }).join('')}</div><div id="rcv"></div></div>`;
+    el.querySelectorAll('[data-r]').forEach(d => d.onclick = () => {
+      const k = d.dataset.r, r = C.records[k];
+      if (!S.recReq[k]) {
+        if (!req(r.req)) { snd('err'); popup(`<h2>${r.icon || '📡'} Отказ</h2><p>${esc(r.why || 'Нет оснований для запроса.')}</p>`); return; }
+        S.recReq[k] = { done: false }; S.queue.push({ due: S.play + (r.delay || 20), type: 'rec', id: k }); persist(); toast('📡 Запрос отправлен'); renderPending(); vRec(el); return;
+      }
+      RK = k; vRec(el);
+    });
+    if (RK && S.recReq[RK] && S.recReq[RK].done) {
+      S.recReq[RK].seen = true;
+      const r = C.records[RK];
+      $('#rcv').innerHTML = `<div class="card bank"><div class="bankhead"><div class="logo2">${r.icon || '📡'}</div><div><b style="font-size:17px">${esc(r.title)}</b><div style="color:#a8d8c0;font-size:13px">${esc(r.head || '')}</div></div></div>
+        <table><tr><th>Время</th><th>${esc(r.col || 'Запись')}</th><th></th></tr>${r.rows.map(t => `<tr class="${t[2] && S.ev.includes(t[2]) ? 'hl' : ''}"><td style="white-space:nowrap;color:var(--mut)">${esc(t[0])}</td><td>${esc(t[1])}${t[3] ? (has('k_' + t[3]) ? ` <span class="tag blue">👤 ${esc(C.people[t[3]].name)}</span>` : ` <button class="btn sm" data-own="${t[3]}">🔎 ${esc(r.ownLabel || 'Установить владельца')}</button>`) : ''}</td><td>${t[2] ? `<button class="pin ${S.ev.includes(t[2]) ? 'got' : ''}" data-pin="${t[2]}" title="В улики">${S.ev.includes(t[2]) ? '✓' : '📌'}</button>` : ''}</td></tr>`).join('')}</table>${r.note ? `<p class="hint" style="margin-top:10px">${esc(r.note)}</p>` : ''}</div>`;
+      $('#rcv').querySelectorAll('[data-pin]').forEach(x => x.onclick = () => { give(x.dataset.pin); vRec(el); });
+      $('#rcv').querySelectorAll('[data-own]').forEach(x => x.onclick = () => { const pid = x.dataset.own; setFlag('k_' + pid); journal(`Установлен владелец: ${C.people[pid].name}`); vRec(el); });
+    }
+    updateBadges();
+  }
+
   // ---------- ПРОСЛУШКА ----------
   function vWire(el) {
     const keys = Object.keys(C.wiretaps).filter(k => has('k_' + C.wiretaps[k].target));
@@ -2447,12 +2593,37 @@ window.CASES.push({
       persist();
     });
   }
+  // ---------- выбор улик: вкладки по типам, без прыжков страницы ----------
+  let PTAB = 'all';
+  const PCAT = ['Документы', 'Вещдоки', 'Наблюдения', 'Показания', 'Телефоны', 'Финансы', 'Запросы', 'Прослушка'];
+  const evCat = id => C.evidence[id].cat || 'Прочее';
+  function pickerHTML(picks) {
+    const cats = [...new Set(S.ev.map(evCat))].sort((a, b) => (PCAT.indexOf(a) + 1 || 99) - (PCAT.indexOf(b) + 1 || 99));
+    if (PTAB !== 'all' && !cats.includes(PTAB)) PTAB = 'all';
+    const tabs = [['all', 'Все', S.ev.length]].concat(cats.map(c => [c, c, S.ev.filter(id => evCat(id) === c).length]));
+    const list = S.ev.filter(id => PTAB === 'all' || evCat(id) === PTAB).slice().reverse();
+    return `<div class="ptabs">${tabs.map(([k, l, n]) => `<button class="ptab ${PTAB === k ? 'on' : ''}" data-pt="${esc(k)}">${esc(l)} <i>${n}</i></button>`).join('')}</div>
+      <div class="picker">${list.map(id => `<div class="ev ${picks.includes(id) ? 'sel' : ''}" data-e="${id}"><div class="i">${C.evidence[id].icon}</div><div><b>${esc(C.evidence[id].name)}</b><small>${esc(C.evidence[id].desc)}</small></div></div>`).join('')}</div>`;
+  }
+  function bindPicker(m, picks, max, onPick) {
+    const wrap = m.querySelector('.pickwrap');
+    wrap.querySelectorAll('[data-pt]').forEach(b => b.onclick = () => { PTAB = b.dataset.pt; wrap.innerHTML = pickerHTML(picks); bindPicker(m, picks, max, onPick); });
+    wrap.querySelectorAll('.picker [data-e]').forEach(d => d.onclick = () => {
+      const id = d.dataset.e;
+      if (!max) { onPick(id); return; }
+      const i = picks.indexOf(id);
+      if (i >= 0) { picks.splice(i, 1); d.classList.remove('sel'); }
+      else if (picks.length < max) { picks.push(id); d.classList.add('sel'); }
+      else { toast(`Можно выбрать не больше ${max}`, 'err'); return; }
+      const c = m.querySelector('#pcnt'); if (c) c.textContent = `Выбрано: ${picks.length}/${max}`;
+    });
+  }
   function pickEvidence(pid) {
     const box = document.createElement('div'); box.className = 'ov'; box.style.zIndex = 60;
-    box.innerHTML = `<div class="modal" style="width:min(900px,94vw)"><h2>Что предъявить?</h2><p class="hint">Выберите улику. Ищите противоречия в показаниях.</p><div class="picker">${S.ev.map(id => `<div class="ev" data-e="${id}"><div class="i">${C.evidence[id].icon}</div><div><b>${esc(C.evidence[id].name)}</b><small>${esc(C.evidence[id].desc)}</small></div></div>`).join('')}</div><div class="row"><button class="btn" id="cx">Отмена</button></div></div>`;
+    box.innerHTML = `<div class="modal" style="width:min(900px,94vw)"><h2>Что предъявить?</h2><p class="hint">Выберите улику. Ищите противоречия в показаниях.</p><div class="pickwrap">${pickerHTML([])}</div><div class="row"><button class="btn" id="cx">Отмена</button></div></div>`;
     document.body.appendChild(box);
     box.querySelector('#cx').onclick = () => box.remove();
-    box.querySelectorAll('[data-e]').forEach(d => d.onclick = () => { box.remove(); present(pid, d.dataset.e); });
+    bindPicker(box, [], 0, id => { box.remove(); present(pid, id); });
   }
   const GENERIC = ['Не понимаю, к чему вы это.', 'И что это должно значить?', 'Мне нечего об этом сказать.', 'Впервые вижу. Это как-то связано со мной?', '* Человек пожимает плечами.'];
   function present(pid, evId) {
@@ -2544,7 +2715,6 @@ window.CASES.push({
     const ov = overlay('<div class="modal" id="acc" style="width:min(860px,94vw)"></div>');
     const draw = () => {
       const m = $('#acc');
-      const pk0 = m.querySelector('.picker'), sc = pk0 ? pk0.scrollTop : 0, msc = m.scrollTop;
       if (step < A.questions.length) {
         const q = A.questions[step];
         m.innerHTML = `<div class="tag red">ОБВИНИТЕЛЬНОЕ ЗАКЛЮЧЕНИЕ · ${step + 1}/${A.questions.length + 1}</div><h2 style="margin-top:8px">${esc(q.q)}</h2><div class="quiz">${q.opts.map(([k, l]) => `<label><input type="radio" name="q" value="${k}" ${ans[step] === k ? 'checked' : ''}>${esc(l)}</label>`).join('')}</div>
@@ -2552,10 +2722,9 @@ window.CASES.push({
         m.querySelector('#nx').onclick = () => { const v = m.querySelector('input:checked'); if (!v) { toast('Выберите ответ', 'err'); return; } ans[step] = v.value; step++; draw(); };
       } else {
         m.innerHTML = `<div class="tag red">ОБВИНИТЕЛЬНОЕ ЗАКЛЮЧЕНИЕ · ${step + 1}/${A.questions.length + 1}</div><h2 style="margin-top:8px">Какие улики вы передадите в суд?</h2><p class="hint">Выберите до 4 самых сильных доказательств. Суд оценит каждую.</p>
-          <div class="picker">${S.ev.map(id => `<div class="ev ${picks.includes(id) ? 'sel' : ''}" data-e="${id}"><div class="i">${C.evidence[id].icon}</div><div><b>${esc(C.evidence[id].name)}</b><small>${esc(C.evidence[id].desc)}</small></div></div>`).join('')}</div>
-          <div class="row"><span class="hint" style="margin-right:auto">Выбрано: ${picks.length}/4</span><button class="btn" id="pv">← Назад</button><button class="btn red" id="go">⚖️ Передать дело в суд</button></div>`;
-        const pk1 = m.querySelector('.picker'); if (pk1) pk1.scrollTop = sc; m.scrollTop = msc;
-      m.querySelectorAll('[data-e]').forEach(d => d.onclick = () => { const id = d.dataset.e; if (picks.includes(id)) picks = picks.filter(x => x !== id); else if (picks.length < 4) picks.push(id); draw(); });
+          <div class="pickwrap">${pickerHTML(picks)}</div>
+          <div class="row"><span class="hint" style="margin-right:auto" id="pcnt">Выбрано: ${picks.length}/4</span><button class="btn" id="pv">← Назад</button><button class="btn red" id="go">⚖️ Передать дело в суд</button></div>`;
+        bindPicker(m, picks, 4);
         m.querySelector('#go').onclick = () => { if (!picks.length) { toast('Выберите хотя бы одну улику', 'err'); return; } judge(ans, picks); };
       }
       const cx = m.querySelector('#cx'); if (cx) cx.onclick = closeOv;
@@ -2635,9 +2804,9 @@ window.CASES.push({
     if (S) armBack();
     S = null; C = null; clearInterval(tickT);
     app.innerHTML = `<div class="title fade"><div class="logoimg">${BADGE_SVG}</div><h1 class="logo">HOME POLICE</h1><div class="sub">Детективные расследования туманного города</div>
-      <div class="filters">${[['all', 'Все'], ['new', 'Новые'], ['prog', 'В процессе'], ['done', 'Раскрытые']].map(([k, l]) => `<button class="btn sm ${FILT === k ? 'gold' : ''}" data-f="${k}">${l}</button>`).join('')}<span class="chip">Раскрыто: <b>${CASES.filter(c => { const s2 = SAVE.cases[c.id]; return s2 && s2.accused && s2.accused.killerOk; }).length}</b> из ${CASES.length}</span></div>
+      <div class="filters">${[['all', 'Все'], ['new', 'Новые'], ['prog', 'В процессе'], ['done', 'Раскрытые']].map(([k, l]) => `<button class="btn sm ${FILT === k ? 'gold' : ''}" data-f="${k}">${l}</button>`).join('')}<span class="chip">Раскрыто: <b>${CASES.filter(c => { const s2 = caseSt(c); return s2 && s2.accused && s2.accused.killerOk; }).length}</b> из ${CASES.length}</span></div>
       <div class="caselist">
-      ${CASES.map((c, i) => { const st = SAVE.cases[c.id]; const done = st && st.accused && st.accused.killerOk; const k = done ? 'done' : st ? 'prog' : 'new'; if (FILT !== 'all' && FILT !== k) return ''; const ic = c._meta ? { murder: '🔪', poison: '🧪', theft: '💰', arson: '🔥' }[c._meta.crime] : '💎'; return `<div class="casecard" data-n="${c.num || i + 1}" data-c="${c.id}"><span class="cic">${ic}</span><h3>${esc(c.title)}</h3><div class="m">${esc(c.subtitle)}</div><div style="margin-top:10px;font-weight:600;font-size:13.5px">${done ? `✅ ${st.accused.score}/100 · ${esc(st.accused.rank)}` : st ? '🔎 В процессе' : (i === 0 ? '⭐ Авторское дело' : 'Новое дело')}</div></div>`; }).join('')}
+      ${CASES.map((c, i) => { const st = caseSt(c); const done = st && st.accused && st.accused.killerOk; const k = done ? 'done' : st ? 'prog' : 'new'; if (FILT !== 'all' && FILT !== k) return ''; const ic = c._meta ? { murder: '🔪', poison: '🧪', theft: '💰', arson: '🔥' }[c._meta.crime] : '💎'; return `<div class="casecard" data-n="${c.num || i + 1}" data-c="${c.id}"><span class="cic">${ic}</span><h3>${esc(c.title)}</h3><div class="m">${esc(c.subtitle)}</div><div style="margin-top:10px;font-weight:600;font-size:13.5px">${done ? `✅ ${st.accused.score}/100 · ${esc(st.accused.rank)}` : st ? '🔎 В процессе' : (i === 0 ? '⭐ Авторское дело' : 'Новое дело')}</div></div>`; }).join('')}
       </div>
       <div style="display:flex;gap:10px;margin-top:22px;flex-wrap:wrap;justify-content:center"><span class="chip" style="padding:9px 14px">🕵️ ${esc(USER)}</span><button class="btn" id="lo">Сменить детектива</button><button class="btn" id="snd">${SAVE.settings.sound ? '🔊 Звук включён' : '🔈 Звук выключен'}</button>${NATIVE ? '<button class="btn red" id="quit">⏻ Выйти из игры</button>' : ''}</div>${NATIVE ? '<div class="hint" style="margin-top:12px">F11 — переключить полноэкранный и оконный режим</div>' : ''}</div>`;
     document.querySelectorAll('.filters [data-f]').forEach(b => b.onclick = () => { FILT = b.dataset.f; screenTitle(); });

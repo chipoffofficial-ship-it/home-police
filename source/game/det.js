@@ -1404,6 +1404,12 @@
 
   // ---------- экран запуска: проверка и загрузка обновления ----------
   let UPD_STATE = '';
+  let APK_NEED = false;
+  const SHELL_VER = (() => { const m = navigator.userAgent.match(/HPTTS\/(\d+)/); return m ? +m[1] : 0; })();
+  const APK_URL = 'https://chipoffofficial-ship-it.github.io/home-police/HOME_POLICE.apk';
+  function apkBox() {
+    return APK_NEED ? `<div class="card" style="margin-top:12px;text-align:left;border-color:rgba(217,166,74,.6)"><b>📲 Новая версия приложения</b><div class="hint" style="margin:6px 0 10px">В ней озвучка персонажей и напоминания. Игра обновляется сама, а приложение нужно скачать один раз и установить поверх — прогресс сохранится.</div><button class="bigbtn" id="apkB" style="font-size:15px;padding:12px"><span class="bi">⬇️</span><span>Скачать приложение</span></button></div>` : '';
+  }
   async function findUpdate(step) {
     const cur = window.HP_VERSION || 0;
     try {
@@ -1413,6 +1419,7 @@
       const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 12000);
       const v = await (await fetch(UPD + 'version.json?t=' + Date.now(), { cache: 'no-store', signal: ctl.signal })).json();
       clearTimeout(tm);
+      APK_NEED = WV && v && v.apk && SHELL_VER < v.apk;
       if (cached && cached.ver > cur && !(v && v.version > cached.ver)) return { state: 'ready', ver: cached.ver };
       if (!v || !(v.version > cur)) return { state: 'none' };
       step(`Найдена версия ${v.version}. Загрузка…`, 0);
@@ -1457,6 +1464,7 @@
       bbt.innerHTML = '<button class="bigbtn" id="bplay"><span class="bi">▶</span><span>Играть</span></button><button class="linkbtn" id="bretry">↻ Проверить обновления ещё раз</button>';
       $('#bretry').onclick = screenBoot;
     }
+    if (APK_NEED) { bbt.insertAdjacentHTML('afterend', apkBox()); $('#apkB').onclick = () => { location.href = APK_URL; setTimeout(() => popup('<h2>📲 Установка</h2><p style="line-height:1.6">Файл <b>HOME_POLICE.apk</b> скачивается в браузере. Когда загрузка закончится, откройте его и нажмите <b>«Обновить»</b> (или «Установить»). Если телефон спросит — разрешите установку из этого источника.</p>'), 600); }; }
     $('#bplay').onclick = () => { snd('click'); startGame(); };
   }
 

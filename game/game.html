@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>HOME POLICE</title><meta name="hp-version" content="23"><script>(function(){var V=23;window.HP_VERSION=V;
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>HOME POLICE</title><meta name="hp-version" content="24"><script>(function(){var V=24;window.HP_VERSION=V;
 if(navigator.userAgent.indexOf('; wv)')<0||window.__HP_BOOTED)return;
 try{var c=JSON.parse(localStorage.getItem('hp_game_cache')||'null');
 if(c&&c.ver>V&&c.html&&c.html.indexOf('name="hp-version" content="'+c.ver+'"')>0){window.__HP_SKIP=true;
@@ -1503,6 +1503,31 @@ window.CASES.push({
     locations.push({ id: 'chome', name: `Обыск у ${CU.fgen}`, addr: CU.db.addr, icon: '🔍', req: ['detained'], art: ['#1e2222', '#3a4444'], desc: 'Обыск по постановлению суда.', spots: [{ id: 'search', name: crime === 'arson' ? 'Гараж и машина' : 'Шкафы и кладовка', text: ev.ev_chome.desc, give: ['ev_chome'] }] });
 
     // ---------- телефоны ----------
+    // отдельный генератор, чтобы остальное содержимое дел не изменилось
+    const R2 = rngFrom(num * 104729 + 977);
+    const p2 = a => a[Math.floor(R2() * a.length)];
+    const gap = () => 2 + Math.floor(R2() * 9);
+    const okR = () => p2(['Хорошо.', G(V, 'Понял.', 'Поняла.'), 'Ок.', 'Ладно.', 'Договорились.', 'Как знаешь.', 'Хорошо, завтра.']);
+    // обычные вечерние переписки — у всех подозреваемых, чтобы сообщение преступника не выделялось
+    const DECOY = alive ? [
+      [`Ты сегодня до скольки ${ST.id === 'cottage' ? 'дома' : 'на месте'}? Хочу занести бумаги.`, 'До шести. Потом уеду.'],
+      ['Ты на месте? Заеду за ключами.', 'Буду до пяти.'],
+      ['Можно завтра заеду поговорить?', 'Давай завтра.'],
+      ['Ты завтра будешь? Надо кое-что обсудить.', 'Буду с утра.'],
+      ['Не забудь про завтрашнюю встречу.', 'Помню.']
+    ] : [
+      ['Нам надо поговорить. Завтра заеду, ладно?', 'Хорошо, жду завтра.'],
+      ['Можно я сегодня попозже позвоню?', 'Звони.'],
+      ['Не забудь про завтрашнюю встречу.', 'Помню.'],
+      ['Ты завтра свободн' + G(V, 'ен', 'на') + '? Есть разговор.', 'После обеда.'],
+      ['Ты дома? Хотел' + '{g} занести долг.', 'Давай завтра.']
+    ];
+    const decoyFor = new Set();
+    const innPool = S.filter(p => p !== CU);
+    innPool.forEach(p => { if (R2() < 0.45) decoyFor.add(p); });
+    if (innPool.length) decoyFor.add(innPool[Math.floor(R2() * innPool.length)]);
+    if (R2() < (routeA === 'chat' ? 0.3 : 0.45)) decoyFor.add(CU);
+    const FOLLOW = [['Если что — звони.', 'Хорошо.'], ['И не забудь про завтра.', 'Помню.'], ['Спасибо.', 'Не за что.'], ['Ладно, до завтра.', 'До завтра.']];
     const vchats = S.map(p => {
       const msgs = [];
       const d0 = `${String(Math.max(1, day - 2)).padStart(2, '0')}.${String(mon + 1).padStart(2, '0')}`;
@@ -1514,21 +1539,40 @@ window.CASES.push({
         if (routeA !== 'chat') {
           const t0 = alive ? tMin - 310 + Math.floor(R() * 30) : tMin - 110 + Math.floor(R() * 30);
           msgs.push([dd + ' ' + hm(t0), 'them', vp(['Сегодня не приеду, устал' + G(CU, '', 'а') + '. Весь вечер дома.', 'Давай завтра обсудим. Я дома, никуда не собираюсь.', 'Не сегодня. Сижу дома, голова раскалывается.']), 'ev_eve_' + CU.id]);
-          msgs.push([dd + ' ' + hm(t0 + 4), 'me', vp(['Как знаешь.', 'Ладно.', 'Хорошо, завтра.'])]);
+          vp(['Как знаешь.', 'Ладно.', 'Хорошо, завтра.']);
+          msgs.push([dd + ' ' + hm(t0 + gap()), 'me', okR()]);
         }
         else if (alive) {
           msgs.push([dd + ' ' + hm(tMin - 290), 'them', `Ты сегодня до скольки ${ST.id === 'cottage' ? 'дома' : 'на месте'}? И кто-то ещё останется?`, 'ev_contact']);
-          msgs.push([dd + ' ' + hm(tMin - 280), 'me', 'Уезжаю в восемь, никого не будет. А что?']);
+          const tr = tMin - 290 + gap();
+          msgs.push([dd + ' ' + hm(tr), 'me', 'Уезжаю в восемь, никого не будет. А что?']);
+          msgs.push([dd + ' ' + hm(tr + 2), 'them', p2(['Да так, хотел' + G(CU, '', 'а') + ' заехать за вещами. Ладно, в другой раз.', 'Просто спросил' + G(CU, '', 'а') + '. Завтра заеду.', 'Ничего, неважно. Потом.'])]);
+          msgs.push([dd + ' ' + hm(tr + 2 + gap()), 'me', okR()]);
         } else {
           msgs.push([dd + ' ' + hm(tMin - 25), 'them', 'Нам надо поговорить. Сейчас приеду.', 'ev_contact']);
-          msgs.push([dd + ' ' + hm(tMin - 24), 'me', 'Жду.']);
+          msgs.push([dd + ' ' + hm(tMin - 25 + Math.min(4, gap())), 'me', p2(['Жду.', 'Хорошо.', 'Ладно.'])]);
         }
       } else {
         const t0 = alive ? tMin - 300 + Math.floor(R() * 40) : tMin - 60 - Math.floor(R() * 40);
         const vn = p.venue.n.split('«')[1];
         const txt = p.secret ? pick(['Сегодня не смогу, голова раскалывается. Буду дома.', 'Я дома, лягу пораньше. Завтра поговорим.']) : pick([`Я сегодня в «${vn} до ночи. Если что — звони.`, `Вечером буду в «${vn}, не теряй.`]);
         msgs.push([dd + ' ' + hm(t0), 'them', txt, 'ev_eve_' + p.id]);
-        msgs.push([dd + ' ' + hm(t0 + 3), 'me', pick(['Хорошо.', G(V, 'Понял.', 'Поняла.'), 'Ок.'])]);
+        pick(['Хорошо.', G(V, 'Понял.', 'Поняла.'), 'Ок.']);
+        msgs.push([dd + ' ' + hm(t0 + gap()), 'me', okR()]);
+      }
+      if (!(p === CU && routeA === 'chat') && R2() < 0.45) {
+        const last = msgs[msgs.length - 1], tl = +last[0].slice(-5, -3) * 60 + +last[0].slice(-2), fu = p2(FOLLOW);
+        if (tl + 12 < 1440) { msgs.push([dd + ' ' + hm(tl + 1 + Math.floor(R2() * 3)), 'them', fu[0]]); msgs.push([dd + ' ' + hm(tl + 4 + Math.floor(R2() * 4)), 'me', fu[1]]); }
+      }
+      if (decoyFor.has(p)) {
+        const own = p === CU && routeA === 'chat' ? DECOY.filter(d => !/до скольки|надо поговорить/i.test(d[0])) : DECOY;
+        const dm = p2(own), firstEve = msgs.findIndex(m => m[0].startsWith(dd));
+        const tEve = firstEve >= 0 ? +msgs[firstEve][0].slice(-5, -3) * 60 + +msgs[firstEve][0].slice(-2) : tMin - 120;
+        const td = Math.max(9 * 60, tEve - 40 - Math.floor(R2() * 80));
+        if (td < tEve - 15) {
+          const dmsg = [[dd + ' ' + hm(td), 'them', dm[0].replace('{g}', G(p, '', 'а'))], [dd + ' ' + hm(td + gap()), 'me', dm[1]]];
+          msgs.splice(firstEve >= 0 ? firstEve : msgs.length, 0, ...dmsg);
+        }
       }
       return { with: p.name, msgs };
     });

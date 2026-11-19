@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>HOME POLICE</title><meta name="hp-version" content="6"><script>(function(){var V=6;window.HP_VERSION=V;
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>HOME POLICE</title><meta name="hp-version" content="7"><script>(function(){var V=7;window.HP_VERSION=V;
 if(navigator.userAgent.indexOf('; wv)')<0||window.__HP_BOOTED)return;
 try{var c=JSON.parse(localStorage.getItem('hp_game_cache')||'null');
 if(c&&c.ver>V&&c.html&&c.html.indexOf('name="hp-version" content="'+c.ver+'"')>0){window.__HP_SKIP=true;
@@ -2932,7 +2932,7 @@ window.CASES.push({
       <div class="caselist">
       ${CASES.map((c, i) => { const st = caseSt(c); const done = st && st.accused && st.accused.killerOk; const k = done ? 'done' : st ? 'prog' : 'new'; if (FILT !== 'all' && FILT !== k) return ''; const ic = c._meta ? { murder: '🔪', poison: '🧪', theft: '💰', arson: '🔥' }[c._meta.crime] : '💎'; return `<div class="casecard" data-n="${c.num || i + 1}" data-c="${c.id}"><span class="cic">${ic}</span><h3>${esc(c.title)}</h3><div class="m">${esc(c.subtitle)}</div><div style="margin-top:10px;font-weight:600;font-size:13.5px">${done ? `✅ ${st.accused.score}/100 · ${esc(st.accused.rank)}` : st ? '🔎 В процессе' : (i === 0 ? '⭐ Авторское дело' : 'Новое дело')}</div></div>`; }).join('')}
       </div>
-      <div style="display:flex;gap:10px;margin-top:22px;flex-wrap:wrap;justify-content:center"><span class="chip" style="padding:9px 14px">${rankOf(profXP()).ic} ${esc(rankOf(profXP()).n)} ${esc(USER)} · ${profXP()} оч.</span><button class="btn" id="ranksB">🎖️ Звания</button><button class="btn" id="lo">Сменить детектива</button><button class="btn" id="snd">${SAVE.settings.sound ? '🔊 Звук включён' : '🔈 Звук выключен'}</button>${NATIVE ? '<button class="btn red" id="quit">⏻ Выйти из игры</button>' : ''}</div>${NATIVE ? '<div class="hint" style="margin-top:12px">F11 — переключить полноэкранный и оконный режим</div>' : ''}</div>`;
+      <div style="display:flex;gap:10px;margin-top:22px;flex-wrap:wrap;justify-content:center"><span class="chip" style="padding:9px 14px">${rankOf(profXP()).ic} ${esc(rankOf(profXP()).n)} ${esc(USER)} · ${profXP()} оч.</span><button class="btn" id="ranksB">🎖️ Звания</button><span class="chip" style="padding:9px 14px">Версия ${window.HP_VERSION || 1} · <span id="updst">${NATIVE || WV ? 'проверка обновлений…' : 'онлайн'}</span></span><button class="btn" id="lo">Сменить детектива</button><button class="btn" id="snd">${SAVE.settings.sound ? '🔊 Звук включён' : '🔈 Звук выключен'}</button>${NATIVE ? '<button class="btn red" id="quit">⏻ Выйти из игры</button>' : ''}</div>${NATIVE ? '<div class="hint" style="margin-top:12px">F11 — переключить полноэкранный и оконный режим</div>' : ''}</div>`;
     document.querySelectorAll('.filters [data-f]').forEach(b => b.onclick = () => { FILT = b.dataset.f; screenTitle(); });
     document.querySelectorAll('.casecard[data-c]').forEach(d => d.onclick = () => {
       const id = d.dataset.c, st = SAVE.cases[id];
@@ -2976,6 +2976,7 @@ window.CASES.push({
   // ---------- автообновление (Android) ----------
   const UPD = 'https://chipoffofficial-ship-it.github.io/home-police/game/';
   async function checkUpdate() {
+    if (NATIVE) return checkUpdatePC();
     if (!WV) return;
     try {
       const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 8000);
@@ -2983,13 +2984,30 @@ window.CASES.push({
       clearTimeout(tm);
       const cur = window.HP_VERSION || 0;
       let cached = null; try { cached = JSON.parse(localStorage.getItem('hp_game_cache') || 'null'); } catch (e) { /* ignore */ }
-      if (!v || !(v.version > cur) || (cached && cached.ver >= v.version)) { if (cached && cached.ver > cur) offerReload(cached.ver); return; }
+      if (!v || !(v.version > cur) || (cached && cached.ver >= v.version)) { if (cached && cached.ver > cur) offerReload(cached.ver); else updStatus('актуальная'); return; }
       const html = await (await fetch(UPD + 'game.html?v=' + v.version, { cache: 'no-store' })).text();
       if (html.indexOf('name="hp-version" content="' + v.version + '"') < 0 || html.length < 100000) return;
       localStorage.setItem('hp_game_cache', JSON.stringify({ ver: v.version, html }));
       offerReload(v.version);
-    } catch (e) { /* нет интернета — играем в текущую версию */ }
+    } catch (e) { updStatus('нет связи с сервером обновлений'); }
   }
+  async function checkUpdatePC() {
+    const cur = window.HP_VERSION || 0;
+    try {
+      const lv = parseInt(await (await fetch('/api/ver', { cache: 'no-store' })).text()) || 0;
+      if (lv > cur) { offerReload(lv); return; }
+      const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 15000);
+      const v = await (await fetch(UPD + 'version.json?t=' + Date.now(), { cache: 'no-store', signal: ctl.signal })).json();
+      clearTimeout(tm);
+      if (!v || !(v.version > cur)) { updStatus('актуальная'); return; }
+      updStatus('загружается обновление…');
+      const html = await (await fetch(UPD + 'game.html?v=' + v.version, { cache: 'no-store' })).text();
+      if (html.indexOf('name="hp-version" content="' + v.version + '"') < 0 || html.length < 100000) return;
+      const r = await (await fetch('/api/update', { method: 'POST', body: html })).text();
+      if (r === 'ok' || (parseInt(await (await fetch('/api/ver', { cache: 'no-store' })).text()) || 0) > cur) offerReload(v.version);
+    } catch (e) { updStatus('нет связи с сервером обновлений'); }
+  }
+  function updStatus(t) { const e = document.getElementById('updst'); if (e) e.textContent = t; }
   function offerReload(ver) {
     const d = document.createElement('div'); d.className = 'toast ev'; d.style.bottom = '22px';
     d.innerHTML = `🔄 Загружено обновление игры. <button class="btn sm gold" style="margin-left:8px">Обновить</button>`;

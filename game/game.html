@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>HOME POLICE</title><meta name="hp-version" content="14"><script>(function(){var V=14;window.HP_VERSION=V;
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>HOME POLICE</title><meta name="hp-version" content="15"><script>(function(){var V=15;window.HP_VERSION=V;
 if(navigator.userAgent.indexOf('; wv)')<0||window.__HP_BOOTED)return;
 try{var c=JSON.parse(localStorage.getItem('hp_game_cache')||'null');
 if(c&&c.ver>V&&c.html&&c.html.indexOf('name="hp-version" content="'+c.ver+'"')>0){window.__HP_SKIP=true;
@@ -3023,7 +3023,13 @@ window.CASES.push({
     if (onMount) onMount(d.querySelector('.modal'));
     return d;
   }
-  document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('.ov') && !$('.talk') && !$('.call')) closeOv(); });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && $('#qy')) { e.preventDefault(); $('#qy').click(); return; }
+    if (e.key !== 'Escape') return;
+    if (document.querySelector('.ov[style*="z-index"]')) { const top = [...document.querySelectorAll('.ov')].pop(); if (top && !top.querySelector('.talk') && !top.querySelector('.call')) { e.preventDefault(); top.remove(); } return; }
+    if ($('.ov')) { if (!$('.talk') && !$('.call')) closeOv(); return; }
+    if (NATIVE) { e.preventDefault(); askQuit(); }
+  });
 
   // ---------- главное меню ----------
   async function quitGame() {
@@ -3037,6 +3043,7 @@ window.CASES.push({
     popup('<h2>Выйти из игры?</h2><p>Прогресс сохранится автоматически.</p>', m => {
       const r = m.querySelector('.row');
       r.insertAdjacentHTML('afterbegin', '<button class="btn red" id="qy">⏻ Выйти</button>');
+      r.insertAdjacentHTML('beforebegin', '<p class="hint" style="margin-top:-4px">Enter — выйти, Esc — остаться.</p>');
       m.querySelector('#qy').onclick = () => { closeOv(); quitGame(); };
       m.querySelector('#pc').textContent = 'Отмена';
     });

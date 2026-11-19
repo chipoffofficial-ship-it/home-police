@@ -1042,13 +1042,49 @@
   function loadVoices() { if (!TTS_WEB) return; RU_VOICES = speechSynthesis.getVoices().filter(v => /^ru/i.test(v.lang)); }
   if (TTS_WEB) { loadVoices(); try { speechSynthesis.onvoiceschanged = loadVoices; } catch (e) { /* ignore */ } }
   function hashStr(t) { let h = 7; for (let i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) >>> 0; return h; }
+  let NAT_VOICES = null;
+  function voiceCatalog() {
+    if (TTS_NATIVE) {
+      if (SHELL_VER < 2) return [];
+      if (!NAT_VOICES) { try { const r = window.prompt('hptts-voices', '') || ''; if (!r) return []; NAT_VOICES = r.split('|').filter(Boolean).map(x => { const [n, q, net] = x.split('~'); return { id: n, q: +q || 0, net: net === 'true' }; }); } catch (e) { NAT_VOICES = []; } }
+      return NAT_VOICES.slice().sort((a, b) => (b.net - a.net) || (b.q - a.q)).map((v, i) => ({ id: v.id, label: `Голос ${i + 1}${v.net ? ' · онлайн, высокое качество' : v.q >= 400 ? ' · высокое качество' : ''} (${v.id})`, best: v.net || v.q >= 400 }));
+    }
+    if (TTS_WEB) { loadVoices(); return RU_VOICES.slice().sort((a, b) => (/natural|online/i.test(b.name) - /natural|online/i.test(a.name))).map(v => ({ id: v.name, label: v.name.replace(/^Microsoft /, '').replace(/ - Russian \(Russia\)/, ''), best: /natural|online/i.test(v.name) })); }
+    return [];
+  }
+  function pickVoice(f) {
+    const cat = voiceCatalog(); if (!cat.length) return null;
+    const saved = SAVE && SAVE.settings && SAVE.settings[f ? 'vFemale' : 'vMale'];
+    if (saved && cat.some(v => v.id === saved)) return saved;
+    const re = f ? /svetlana|dariya|daria|irina|ekaterina|milena|anna|alena|elena|female|жен/i : /dmitry|pavel|yuri|maxim|male|муж/i;
+    const g = cat.filter(v => re.test(v.id) && !(f ? false : /female/i.test(v.id)));
+    if (g.length) return (g.find(v => v.best) || g[0]).id;
+    const best = cat.filter(v => v.best).length ? cat.filter(v => v.best) : cat;
+    return (f ? best[0] : best[Math.min(1, best.length - 1)]).id;
+  }
+  function openVoices() {
+    const cat = voiceCatalog();
+    if (!cat.length) { popup('<h2>🗣️ Голоса</h2><p>Русских голосов на устройстве не найдено. Нажмите «🎙️ Проверить озвучку» в меню — там подсказка, как их добавить.</p>'); return; }
+    const sel = f => `<select class="inp" id="${f ? 'vf' : 'vm'}" style="margin:6px 0">${cat.map(v => `<option value="${esc(v.id)}" ${pickVoice(f) === v.id ? 'selected' : ''}>${v.best ? '⭐ ' : ''}${esc(v.label)}</option>`).join('')}</select>`;
+    popup(`<h2>🗣️ Голоса персонажей</h2><p class="hint">⭐ — самые естественные голоса. Выберите и послушайте.</p>
+      <b>Мужчины</b>${sel(false)}<button class="btn sm" id="pm">▶ Послушать</button>
+      <div style="height:14px"></div><b>Женщины</b>${sel(true)}<button class="btn sm" id="pf">▶ Послушать</button>`, m => {
+      const save = () => { SAVE.settings.vMale = m.querySelector('#vm').value; SAVE.settings.vFemale = m.querySelector('#vf').value; persist(); };
+      m.querySelector('#vm').onchange = save; m.querySelector('#vf').onchange = save;
+      m.querySelector('#pm').onclick = () => { save(); ttsStop(); sayAs(false, 'Комиссар Громов на связи. Дело серьёзное, работаем.'); };
+      m.querySelector('#pf').onclick = () => { save(); ttsStop(); sayAs(true, 'Здравствуйте. Я Вера Соколова, экспертиза готова.'); };
+    });
+  }
+  function sayAs(f, text) { const was = SAVE.settings.voice; SAVE.settings.voice = true; say(f ? 'vera' : 'gromov', text, f); SAVE.settings.voice = was; }
   function voiceFor(pid) {
     const P = (C && C.people && C.people[pid]) || {};
     const f = !!P.f, h = hashStr(pid || 'x');
-    const pitch = f ? 1.08 + (h % 20) / 100 : 0.78 + (h % 20) / 100;
+    const nat = voiceCatalog().length > 0;
+    const pitch = nat ? 0.94 + (h % 12) / 100 : f ? 1.08 + (h % 20) / 100 : 0.78 + (h % 20) / 100;
     const rate = P.age > 62 ? 0.9 : P.age && P.age < 28 ? 1.1 : 1.0;
-    let v = null;
-    if (RU_VOICES.length) {
+    let v = null, vid = pickVoice(f);
+    if (TTS_WEB && vid) v = RU_VOICES.find(x => x.name === vid) || null;
+    if (!v && RU_VOICES.length) {
       const fem = RU_VOICES.filter(x => /svetlana|dariya|daria|irina|ekaterina|milena|anna|alena|elena|female|жен/i.test(x.name));
       const mal = RU_VOICES.filter(x => /dmitry|pavel|yuri|maxim|male|муж/i.test(x.name) && !/female/i.test(x.name));
       const pool = (f ? fem : mal).length ? (f ? fem : mal) : RU_VOICES;
@@ -1056,14 +1092,14 @@
       const pp = nat.length ? nat : pool;
       v = pp[h % pp.length];
     }
-    return { v, pitch, rate };
+    return { v, vid, pitch, rate };
   }
   function clean(t) { return String(t).replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{FE0F}\u{200D}]/gu, '').replace(/[«»]/g, '"').trim(); }
-  function say(pid, text) {
+  function say(pid, text, fOverride) {
     const t = clean(text); if (!t || !voiceOn()) return 0;
-    const vf = voiceFor(pid);
+    const vf = voiceFor(pid); if (fOverride !== undefined) { vf.vid = pickVoice(fOverride); if (TTS_WEB) vf.v = RU_VOICES.find(x => x.name === vf.vid) || vf.v; }
     try {
-      if (TTS_NATIVE) TTS_LAST = window.prompt('hptts:' + vf.pitch.toFixed(2), t);
+      if (TTS_NATIVE) TTS_LAST = window.prompt('hptts:' + vf.pitch.toFixed(2) + (vf.vid && SHELL_VER >= 2 ? ':' + vf.vid : ''), t);
       else {
         if (!RU_VOICES.length) loadVoices();
         const u = new SpeechSynthesisUtterance(t); u.lang = 'ru-RU'; if (vf.v) u.voice = vf.v; u.pitch = vf.pitch; u.rate = vf.rate; u.volume = 1;
@@ -1084,7 +1120,8 @@
     setTimeout(() => {
       let t;
       if (TTS_NATIVE) {
-        t = TTS_LAST === '0' ? '✅ Синтезатор речи телефона принял фразу. Если голоса не слышно — проверьте громкость мультимедиа.' : TTS_LAST === '-1' ? '⚠️ Синтезатор речи телефона не готов. Откройте Настройки → Специальные возможности (или Язык и ввод) → Синтез речи: выберите «Синтезатор речи Google» и скачайте русский голос.' : '⚠️ Нет ответа от синтезатора речи. Установите последнюю версию HOME_POLICE.apk.';
+        const nv = voiceCatalog();
+        t = (nv.length ? `Русских голосов: <b>${nv.length}</b>, лучших: ${nv.filter(v => v.best).length}.<br>` : '') + (TTS_LAST === '0' ? '✅ Синтезатор речи телефона принял фразу. Если голоса не слышно — проверьте громкость мультимедиа.' : TTS_LAST === '-1' ? '⚠️ Синтезатор речи телефона не готов. Откройте Настройки → Специальные возможности (или Язык и ввод) → Синтез речи: выберите «Синтезатор речи Google» и скачайте русский голос.' : '⚠️ Нет ответа от синтезатора речи. Установите последнюю версию HOME_POLICE.apk.');
       } else if (TTS_WEB) {
         loadVoices();
         const all = speechSynthesis.getVoices();
@@ -1303,6 +1340,7 @@
         <button class="mi" id="snd">${SAVE.settings.sound ? '🔊 Звук: включён' : '🔈 Звук: выключен'}</button>
         <button class="mi" id="musB">${musicWanted() ? '🎵 Музыка: включена' : '🎵 Музыка: выключена'}</button>
         <button class="mi" id="voiceT">🎙️ Проверить озвучку</button>
+        <button class="mi" id="voiceS">🗣️ Голоса персонажей</button>
         ${TTS_OK() ? `<button class="mi" id="voiceB">${voiceOn() ? '🗣️ Озвучка: включена' : '🤐 Озвучка: выключена'}</button>` : ''}
         <button class="mi" id="lo">👤 Сменить детектива</button>
         ${NATIVE ? '<button class="mi red" id="quit">⏻ Выйти из игры</button>' : ''}
@@ -1325,6 +1363,7 @@
     });
     $('#snd').onclick = () => { SAVE.settings.sound = !SAVE.settings.sound; persist(); screenTitle(); };
     const mb = $('#musB'); if (mb) mb.onclick = () => { SAVE.settings.music = !musicWanted(); persist(); if (SAVE.settings.music) musicStart(); else musicStop(); screenTitle(); setTimeout(() => { const m = $('#menuP'); if (m) m.style.display = ''; }, 0); };
+    const vs = $('#voiceS'); if (vs) vs.onclick = () => { $('#menuP').style.display = 'none'; openVoices(); };
     const vt = $('#voiceT'); if (vt) vt.onclick = () => { $('#menuP').style.display = 'none'; ttsCheck(); };
     const vb = $('#voiceB'); if (vb) vb.onclick = () => { SAVE.settings.voice = !voiceOn(); persist(); if (SAVE.settings.voice) { C = null; say('gromov', 'Озвучка включена. Добро пожаловать в отдел, детектив.'); } screenTitle(); setTimeout(() => { const m = $('#menuP'); if (m) m.style.display = ''; }, 0); };
     $('#lo').onclick = logout;

@@ -121,6 +121,10 @@ class Asm:
     def inv_super(self, m, regs): return self._inv(0x6f, m, regs)
     def inv_direct(self, m, regs): return self._inv(0x70, m, regs)
     def inv_static(self, m, regs): return self._inv(0x71, m, regs)
+    def inv_iface(self, m, regs): return self._inv(0x72, m, regs)
+    def goto16(self, lab): return self.raw(2, lambda R, pos, L: struct.pack('<BBh', 0x29, 0, L[lab] - pos))
+    def if_lez(self, a, lab): return self.raw(2, lambda R, pos, L: struct.pack('<BBh', 0x3d, a, L[lab] - pos))
+    def add_lit8(self, a, b, v): return self.raw(2, lambda R, pos, L: struct.pack('<BBBb', 0xd8, a, b, v))
 
     def assemble(self, R):
         L, pos = {}, 0

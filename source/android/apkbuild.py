@@ -6,7 +6,7 @@ import struct, zlib, hashlib, zipfile, os, sys, subprocess
 PKG = 'com.homepolice.game'
 ACT = PKG + '.MainActivity'
 LABEL = 'HOME POLICE'
-VCODE, VNAME = 4, '4.0'
+VCODE, VNAME = 5, '5.0'
 MIN_SDK, TARGET_SDK = 21, 29
 
 # ---------------------------------------------------------------- DEX

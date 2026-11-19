@@ -196,22 +196,35 @@
   }
 
   // ---------- воспроизведение ----------
-  let AC = null, gen = 0, playAt = 0, srcs = [], work = Promise.resolve();
+  let AC = null, gen = 0, playAt = 0, srcs = [], work = Promise.resolve(), RTF = 0.5;
   function ac() {
     if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)();
     if (AC.state === 'suspended') AC.resume().catch(() => {});
     return AC;
   }
   ['pointerdown', 'keydown', 'touchstart'].forEach(ev => document.addEventListener(ev, () => { if (AC && AC.state === 'suspended') AC.resume().catch(() => {}); }, { passive: true, capture: true }));
-  function playSamples(samples, sr, rate) {
+  // обрезаем тишину по краям фрагмента, оставляя короткие «хвосты», чтобы звук не щёлкал
+  function trim(x, sr) {
+    const th = 0.006, keep = Math.floor(sr * 0.025);
+    let a = 0, z = x.length - 1;
+    while (a < x.length && Math.abs(x[a]) < th) a++;
+    while (z > a && Math.abs(x[z]) < th) z--;
+    if (z <= a) return x;
+    return x.subarray(Math.max(0, a - keep), Math.min(x.length, z + 1 + keep));
+  }
+  // gapAfter — пауза после фрагмента: короткая внутри реплики, чуть длиннее между репликами
+  function playSamples(samples, sr, rate, startAt, gapAfter) {
     const c = ac();
+    samples = trim(samples, sr);
     const b = c.createBuffer(1, samples.length, sr); b.getChannelData(0).set(samples);
     const s = c.createBufferSource(); s.buffer = b; s.playbackRate.value = rate || 1;
     const g = c.createGain(); g.gain.value = 1; s.connect(g); g.connect(c.destination);
-    const at = Math.max(c.currentTime + 0.03, playAt);
-    s.start(at); playAt = at + samples.length / sr / (rate || 1) + 0.18;
-    window.HPPiper.last = { n: samples.length, sr, rms: Math.sqrt(samples.reduce((a, x) => a + x * x, 0) / Math.max(1, samples.length)) };
+    const at = Math.max(c.currentTime + 0.02, playAt, startAt || 0);
+    const dur = samples.length / sr / (rate || 1);
+    s.start(at); playAt = at + dur + (gapAfter || 0);
+    window.HPPiper.last = { n: samples.length, sr, dur, rms: Math.sqrt(samples.reduce((a, x) => a + x * x, 0) / Math.max(1, samples.length)) };
     srcs.push(s); s.onended = () => { srcs = srcs.filter(x => x !== s); };
+    return dur;
   }
   function splitText(t) {
     const out = [];
@@ -233,15 +246,26 @@
       if (my !== gen) return;
       try {
         await ensureVoice(id);
-        for (const p of parts) {
+        // сначала разбиваем всё на звуки (это быстро), потом синтезируем по предложениям
+        const all = [];
+        for (const p of parts) { if (my !== gen) return; (await PW.call({ op: 'phon', text: p })).res.forEach(x => all.push(x)); }
+        const rate = opts.pitch || 1, spd = opts.speed || 1;
+        const est = x => x.length * 0.062 / spd / rate; // примерная длительность фрагмента, с
+        let startAt = 0;
+        for (let k = 0; k < all.length; k++) {
           if (my !== gen) return;
-          const ph = (await PW.call({ op: 'phon', text: p })).res;
-          for (const s of ph) {
-            if (my !== gen) return;
-            const r = await TW.call({ op: 'gen', name: id, ph: s, speed: opts.speed || 1 });
-            if (my !== gen) return;
-            playSamples(r.samples, r.sr, opts.pitch || 1);
+          const t0 = performance.now();
+          const r = await TW.call({ op: 'gen', name: id, ph: all[k], speed: spd });
+          if (my !== gen) return;
+          const real = r.samples.length / r.sr / rate;
+          RTF = RTF * 0.6 + Math.min(4, (performance.now() - t0) / 1000 / Math.max(0.2, real)) * 0.4;
+          if (k === 0 && all.length > 1 && RTF > 0.85) {
+            // медленное устройство: чуть придерживаем начало, чтобы фраза шла без провалов
+            const rest = all.slice(1).reduce((a, x) => a + est(x), 0), last = est(all[all.length - 1]);
+            const wait = Math.min(6, Math.max(0, RTF * 1.1 * rest - (real + rest - last)));
+            if (wait > 0.05) startAt = ac().currentTime + wait;
           }
+          playSamples(r.samples, r.sr, rate, k === 0 ? startAt : 0, k === all.length - 1 ? 0.3 : 0.09);
         }
       } catch (e) {
         st.error = String(e && e.message || e); st.fails = (st.fails || 0) + 1;

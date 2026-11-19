@@ -824,7 +824,7 @@
     (function next() {
       if (i >= parsed.length) { if (lock) lock.style.pointerEvents = ''; drawTopics(pid); return; }
       log.appendChild(lineEl(parsed[i][0], parsed[i][1], pid)); log.scrollTop = log.scrollHeight;
-      const sp = parsed[i][0] === 'p' ? say(pid, parsed[i][1]) : 0;
+      const sp = parsed[i][0] === 'p' ? say(pid, parsed[i][1]) : parsed[i][0] === 'me' ? say('me', parsed[i][1]) : 0;
       i++; setTimeout(next, sp ? Math.max(520, sp) : parsed[i - 1][0] === 'me' ? 250 : 520);
     })();
   }
@@ -926,7 +926,7 @@
         const d = document.createElement('div'); d.className = 'ln ' + (w === '>' ? 'me' : 'p'); d.style.maxWidth = '100%'; d.style.fontSize = '14px';
         d.innerHTML = w === '>' ? esc(t) : `<b style="color:var(--gold);font-size:12px;display:block">${esc(w)}</b>${esc(t)}`;
         cl.appendChild(d); cl.scrollTop = cl.scrollHeight; i++;
-        const sp = w === '>' ? 0 : say(m.from, t);
+        const sp = say(w === '>' ? 'me' : m.from, t);
         setTimeout(next, Math.max(900, sp));
       })();
     };
@@ -957,7 +957,7 @@
       const d = document.createElement('div'); d.className = 'ln ' + (w === '>' ? 'me' : 'p'); d.style.maxWidth = '100%'; d.style.fontSize = '14px';
       d.innerHTML = w === '>' ? esc(t) : `<b style="color:var(--gold);font-size:12px;display:block">${esc(w)}</b>${esc(t)}`;
       cl.appendChild(d); i++;
-      const sp = w === '>' ? 0 : say('gromov', t);
+      const sp = say(w === '>' ? 'me' : 'gromov', t);
       setTimeout(next, Math.max(800, sp));
     })();
   }
@@ -1084,11 +1084,13 @@
         ${p.ready ? `<label style="display:flex;gap:8px;align-items:center;margin:8px 0"><input type="checkbox" id="peng" ${SAVE.settings.engine !== 'device' ? 'checked' : ''}> Использовать голоса Piper</label>
         <b>Громов и мужчины</b>${sel(false)}<button class="btn sm" id="pm">▶ Послушать</button>
         <div style="height:14px"></div><b>Вера и женщины</b>${sel(true)}<button class="btn sm" id="pf">▶ Послушать</button>
+        <div style="height:14px"></div><b>Ваш голос (детектив)</b><select class="inp" id="pvme" style="margin:6px 0">${V.map(v => `<option value="${v.id}" ${piperVoice('me', false) === v.id && SAVE.settings.pMe !== 'off' ? 'selected' : ''}>${esc(v.name)}</option>`).join('')}<option value="off" ${SAVE.settings.pMe === 'off' ? 'selected' : ''}>Не озвучивать мои реплики</option></select><button class="btn sm" id="pme">▶ Послушать</button>
         <p class="hint">Остальные персонажи получают свой голос и тембр автоматически.</p><p class="hint" style="font-size:11.5px;opacity:.75">Голоса Piper: Дмитрий, Денис (NabuCasa, CC0), Ирина (RHVoice), Руслан (корпус RUSLAN, CC BY-NC-SA 4.0). Движок: sherpa-onnx, espeak-ng.</p>` : ''}
         ${cat.length ? '<div style="height:10px"></div><button class="btn sm" id="pdev">⚙️ Голоса устройства</button>' : ''}`, m => {
         const q = x => m.querySelector(x);
-        const save = () => { if (q('#pvm')) { SAVE.settings.pMale = q('#pvm').value; SAVE.settings.pFemale = q('#pvf').value; } if (q('#peng')) SAVE.settings.engine = q('#peng').checked ? 'piper' : 'device'; persist(); };
-        ['#pvm', '#pvf', '#peng'].forEach(x => { if (q(x)) q(x).onchange = save; });
+        const save = () => { if (q('#pvm')) { SAVE.settings.pMale = q('#pvm').value; SAVE.settings.pFemale = q('#pvf').value; } if (q('#pvme')) SAVE.settings.pMe = q('#pvme').value; if (q('#peng')) SAVE.settings.engine = q('#peng').checked ? 'piper' : 'device'; persist(); };
+        if (q('#pme')) q('#pme').onclick = () => { save(); ttsStop(); const was = SAVE.settings.voice; SAVE.settings.voice = true; say('me', 'Комиссар, это детектив. Выезжаю на место.'); SAVE.settings.voice = was; };
+        ['#pvm', '#pvf', '#pvme', '#peng'].forEach(x => { if (q(x)) q(x).onchange = save; });
         if (q('#pm')) q('#pm').onclick = () => { save(); ttsStop(); sayAs(false, 'Комиссар Громов на связи. Дело серьёзное, работаем.'); };
         if (q('#pf')) q('#pf').onclick = () => { save(); ttsStop(); sayAs(true, 'Здравствуйте. Я Вера Соколова, экспертиза готова.'); };
         if (q('#pdev')) q('#pdev').onclick = () => { save(); closeOv(); openDeviceVoices(); };
@@ -1134,6 +1136,7 @@
   function piperVoice(pid, f) {
     const V = PIPER.VOICES, fem = V.filter(v => v.f), mal = V.filter(v => !v.f);
     const pool = (f ? fem : mal).length ? (f ? fem : mal) : V;
+    if (pid === 'me') { const me = SAVE.settings.pMe; if (V.some(v => v.id === me)) return me; return (V.find(v => v.id === 'denis') || V.find(v => !v.f) || V[0]).id; }
     const pick = SAVE.settings[f ? 'pFemale' : 'pMale'];
     if (pid === 'gromov' || pid === 'vera') return pool.some(v => v.id === pick) ? pick : pool[0].id;
     return pool[hashStr(pid || 'x') % pool.length].id;
@@ -1141,12 +1144,14 @@
   function sayPiper(pid, t, fOverride) {
     const P = (C && C.people && C.people[pid]) || {};
     const f = fOverride !== undefined ? fOverride : (pid === 'vera' ? true : pid === 'gromov' ? false : !!P.f), h = hashStr(pid || 'x');
-    const pitch = pid === 'gromov' || pid === 'vera' || fOverride !== undefined ? 1 : 0.95 + (h % 11) / 100;
+    let pitch = pid === 'gromov' || pid === 'vera' || fOverride !== undefined ? 1 : 0.95 + (h % 11) / 100;
+    if (pid === 'me') { const v = piperVoice('me', false); pitch = v === piperVoice('gromov', false) ? 1.07 : 1; return PIPER.speak(t, { voice: v, pitch, speed: 1.04, onFail: () => { if (TTS_NATIVE || TTS_WEB) sayDevice(pid, t); } }); }
     const speed = P.age > 62 ? 0.9 : P.age && P.age < 28 ? 1.08 : 1.0;
     return PIPER.speak(t, { voice: piperVoice(pid, f), pitch, speed, onFail: () => { if (TTS_NATIVE || TTS_WEB) sayDevice(pid, t, fOverride); } });
   }
   function say(pid, text, fOverride) {
     const t = clean(text); if (!t || !voiceOn()) return 0;
+    if (pid === 'me' && SAVE.settings.pMe === 'off') return 0;
     if (piperOn() && sayPiper(pid, t, fOverride)) { TTS_LAST = 'piper'; return Math.min(16000, 900 + t.length * 66); }
     if (!TTS_NATIVE && !TTS_WEB) return 0;
     return sayDevice(pid, t, fOverride);

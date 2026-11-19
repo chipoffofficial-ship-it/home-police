@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>HOME POLICE</title><meta name="hp-version" content="5"><script>(function(){var V=5;window.HP_VERSION=V;
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>HOME POLICE</title><meta name="hp-version" content="6"><script>(function(){var V=6;window.HP_VERSION=V;
 if(navigator.userAgent.indexOf('; wv)')<0||window.__HP_BOOTED)return;
 try{var c=JSON.parse(localStorage.getItem('hp_game_cache')||'null');
 if(c&&c.ver>V&&c.html&&c.html.indexOf('name="hp-version" content="'+c.ver+'"')>0){window.__HP_SKIP=true;
@@ -473,6 +473,10 @@ window.CASES.push({
       pt: { skin: 0, hair: 'bun', hairC: '#7a4a2a', age: 1, glasses: true, cloth: '#e8e8ec', collar: 'coat', bg: '#4a6a78' } },
     liza: { name: 'Лиза Ким', role: 'Технический отдел', colleague: true, f: true,
       pt: { skin: 1, hair: 'bob', hairC: '#151515', age: 0, cloth: '#3c3c5c', collar: 'hoodie', bg: '#4b3f6b' } },
+    partner: { name: 'Игорь Белов', role: 'Напарник', colleague: true,
+      pt: { skin: 1, hair: 'buzz', hairC: '#2a1a10', age: 1, beard: 'stubble', cloth: '#2d3a2d', collar: 'jacket', bg: '#3a4a3a' } },
+    kin: { name: 'Марина Орлова', role: 'Кинолог', colleague: true, f: true,
+      pt: { skin: 0, hair: 'ponytail', hairC: '#7a4a2a', age: 1, cloth: '#2a3a2a', collar: 'jacket', bg: '#3a4a30' } },
 
     arkady: { name: 'Аркадий Лебедев', role: 'Жертва, ювелир', victim: true, age: 54,
       pt: { skin: 1, hair: 'bald', hairC: '#8d8d8d', age: 3, beard: 'full', glasses: true, cloth: '#5b4a3a', collar: 'vest', bg: '#6b6b6b' },
@@ -549,6 +553,7 @@ window.CASES.push({
   ],
 
   // ---------- места ----------
+  k9: { loc: 'workshop', text: 'Собака взяла след у задней двери мастерской и довела до велосипедной стойки во дворе. Дальше след обрывается — человек уехал на велосипеде. Узкая шина, как у городского велосипеда.' },
   locations: [
     { id: 'workshop', name: 'Мастерская «Лебедев»', addr: 'ул. Литейная, 14', icon: '💎', req: [], art: ['#2a2230', '#5a3a4a'],
       desc: 'Небольшая ювелирная мастерская в полуподвале. Оцеплена со вчерашнего утра. Тело увезли, мел на полу очерчивает место, где лежал Аркадий Петрович.',
@@ -1800,7 +1805,7 @@ window.CASES.push({
     if (FR) summon[FR.id] = { req: ['k_' + FR.id] };
     const pp = {};
     const colleague = window.CASES && window.CASES[0] ? window.CASES[0].people : null;
-    ['gromov', 'vera', 'liza'].forEach(k => { if (colleague) pp[k] = colleague[k]; });
+    ['gromov', 'vera', 'liza', 'partner', 'kin'].forEach(k => { if (colleague && colleague[k]) pp[k] = colleague[k]; });
     Object.values(people).forEach(p => { pp[p.id] = { name: p.name, role: p.role.charAt(0).toUpperCase() + p.role.slice(1), f: p.f, age: p.age, pt: p.pt, db: p.db, victim: p.victim }; });
     // уникальное название
     const title = pick(ST.titles);
@@ -1813,6 +1818,12 @@ window.CASES.push({
         `Под подозрением пятеро — у каждого своя причина и своя тайна. Кто-то лжёт, чтобы скрыть преступление, кто-то — чтобы скрыть собственный секрет.`,
       ],
       people: pp, start: known0.concat(['ev_report', 'ev_autopsy']),
+      k9: { loc: 'scene', text: {
+        car: `Собака взяла след у двери и довела до края парковки у дома ${house + 1}. Там след обрывается — человек сел в машину. Ищите машину: свидетели, камеры, номера.`,
+        voice: routeB === 'bank' ? `След ведёт от двери вдоль ул. ${street} к «${cshop.split('«')[1]} на углу и дальше теряется в толпе. Похоже, преступник заходил туда — проверьте, кто там платил картой.` : `След идёт вдоль ул. ${street} и обрывается у перекрёстка — человек, похоже, сел в машину или ушёл дворами. Телефон при нём наверняка был: оператор связи покажет, чей номер был рядом.`,
+        foot: `След ведёт к автобусной остановке «Улица ${street}» и обрывается у бордюра. Преступник уехал на автобусе — проверьте транспортные карты.`,
+        taxi: `След ведёт от двери к обочине на ул. ${street}, где обычно останавливаются такси, и там обрывается. Приехал${G(CU, '', 'а')} и уехал${G(CU, '', 'а')} на машине — проверьте службы такси.`,
+      }[witKind] },
       tasks, locations, evidence: ev, phones, bank, records, wiretaps, actions, messages, talk, summon, accuse, status,
       _meta: { crime, trick, culprit: CU.id, mot: CU.mot, setting: ST.id, pin: alive ? null : pinKind === 'year' ? String(foundY) : pinDate.pin, routeA, routeB, catchBy, witKind, pinKind },
     };
@@ -2068,6 +2079,12 @@ window.CASES.push({
       journal(`Техотдел разблокировал: ${ph.title}`);
       S.inbox.unshift({ id: 'tech_' + q.id, from: 'liza', time: clock(), read: false, text: `${ph.title} разблокирован${ph.chats.some(c => c.restored) ? ', удалённые данные восстановлены' : ''}. Раздел «Телефоны».` });
       snd('msg'); toast(`📱 Разблокирован: <b>${esc(ph.title)}</b>`);
+    } else if (q.type === 'partner') {
+      doOrder(q.id);
+    } else if (q.type === 'k9') {
+      const t = (C.k9 && C.k9.text) || 'Собака покрутилась у входа, но след затоптан.';
+      S.inbox.unshift({ id: 'k9_' + S.play, from: 'kin', time: clock(), read: false, text: t });
+      journal('Кинолог: ' + t); snd('msg'); toast('🐕 Кинолог закончил работу — сообщение в телефоне');
     } else if (q.type === 'rec') {
       S.recReq = S.recReq || {}; S.recReq[q.id].done = true;
       const r = C.records[q.id];
@@ -2101,19 +2118,20 @@ window.CASES.push({
   const BADGE_SVG = `<svg viewBox="0 0 120 120"><defs><linearGradient id="lgx" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f7dd9d"/><stop offset=".6" stop-color="#c8933d"/><stop offset="1" stop-color="#8c6422"/></linearGradient></defs><path d="M60 4 L106 21 Q108 71 60 117 Q12 71 14 21Z" fill="url(#lgx)" stroke="#5c4215" stroke-width="3"/><path d="M60 15 L96 28 Q97 68 60 105 Q23 68 24 28Z" fill="#141922"/><path d="M60 32 L86 53 L81 53 L81 78 L39 78 L39 53 L34 53Z" fill="url(#lgx)"/><rect x="54" y="61" width="12" height="17" fill="#141922"/><path d="M60 84 L62.5 90 L69 90 L64 94 L66 100 L60 96.5 L54 100 L56 94 L51 90 L57.5 90Z" fill="url(#lgx)"/></svg>`;
 
   function renderDesk() {
-    app.innerHTML = `<div class="desk fade"><div class="side"><div class="brand">${BADGE_SVG}<div><b>HOME POLICE</b><small>Терминал следователя</small></div></div>
+    app.innerHTML = `<div class="desk fade"><div class="side"><div class="brand">${BADGE_SVG}<div><b>HOME POLICE</b><small>${rankOf(profXP()).ic} ${rankOf(profXP()).n}</small></div></div>
       ${NAV.map(([id, ic, nm]) => `<button class="nav" data-v="${id}"><span class="ic">${ic}</span>${nm}<span class="bd" id="bd_${id}" style="display:none"></span></button>`).join('')}
       <div class="sp"></div>
       <button class="myphone" id="myph"><span style="font-size:22px">📲</span><div style="text-align:left"><b style="font-size:14px">Мой телефон</b><br><small style="color:var(--mut)">Звонки и сообщения</small></div><span class="bd" id="bd_inbox" style="display:none;margin-left:auto;background:var(--red);border-radius:10px;font-size:11px;padding:1px 7px;font-weight:700"></span></button>
       <button class="nav" id="tomenu" style="margin-top:6px"><span class="ic">🏠</span>Главное меню</button>
       ${NATIVE ? '<button class="nav" id="quitg"><span class="ic">⏻</span>Выйти из игры</button>' : ''}
       </div><div class="main"><div class="topbar"><h1>${esc(C.title)}</h1><span class="chip">📅 ${esc(C.date)}</span><span class="chip">🕘 <b id="clock">${clock()}</b></span><div class="pending" id="pending"></div><div class="sp"></div>
-      <button class="btn sm" id="callG">📞 Позвонить Громову</button></div><div class="content" id="content"></div></div></div>`;
+      ${perk('partner') ? '<button class="btn sm" id="partnerB">🧑‍🤝‍🧑 Напарник</button>' : ''}<button class="btn sm" id="callG">📞 Позвонить Громову</button></div><div class="content" id="content"></div></div></div>`;
     document.querySelectorAll('.nav[data-v]').forEach(b => b.onclick = () => { snd('click'); S.view = b.dataset.v; renderView(); });
     $('#myph').onclick = openInbox;
     $('#tomenu').onclick = () => { persist(); clearInterval(tickT); screenTitle(); };
     const qg = $('#quitg'); if (qg) qg.onclick = askQuit;
     $('#callG').onclick = callGromov;
+    const pb = $('#partnerB'); if (pb) pb.onclick = openPartner;
     renderView();
     renderPending();
   }
@@ -2139,6 +2157,8 @@ window.CASES.push({
       if (q.type === 'bank') items.push(`🏦 Банк: ${C.people[C.bank[q.id].owner].name.split(' ')[0]} ${rest(q)}с`);
       if (q.type === 'tech') items.push(`📱 Техотдел ${rest(q)}с`);
       if (q.type === 'wire') items.push(`🎧 Прослушка ${rest(q)}с`);
+      if (q.type === 'partner') items.push(`🧑‍🤝‍🧑 Напарник ${rest(q)}с`);
+      if (q.type === 'k9') items.push(`🐕 Кинолог ${rest(q)}с`);
       if (q.type === 'rec') items.push(`📡 ${C.records[q.id].short || 'Запрос'} ${rest(q)}с`);
     });
     el.innerHTML = items.slice(0, 4).map(t => `<span class="chip"><span class="spin"></span>${esc(t)}</span>`).join('');
@@ -2166,12 +2186,13 @@ window.CASES.push({
       <div><div class="card"><div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:16px">🎯 Задачи расследования</b><span class="tag gold">${done}/${tasks.length}</span></div>
         <ul class="tasks" style="margin-top:8px">${tasks.map(t => `<li class="${req(t.done) ? 'done' : ''}"><span class="ck">${req(t.done) ? '✓' : ''}</span>${esc(t.text)}</li>`).join('')}</ul></div>
         <div class="card" style="margin-top:16px"><b>⚖️ Обвинение</b><p class="hint" style="margin:6px 0 12px">${canAccuse ? 'Когда будете уверены — предъявите обвинение. Ответы и выбранные улики определят исход дела в суде.' : 'Станет доступно, когда будет задержан главный подозреваемый.'}</p>
-        <button class="btn ${canAccuse ? 'red' : ''}" id="accuse" ${canAccuse ? '' : 'disabled'}>${S.accused ? 'Посмотреть итог дела' : 'Предъявить обвинение'}</button></div>
+        <button class="btn ${canAccuse ? 'red' : ''}" id="accuse" ${canAccuse ? '' : 'disabled'}>${S.accused ? 'Посмотреть итог дела' : 'Предъявить обвинение'}</button>${perk('analyst') ? '<button class="btn" id="analyst" style="margin-left:8px">🧠 Спросить аналитика' : ''}</button></div>
         <div class="card" style="margin-top:16px;font-size:13.5px;color:var(--mut);line-height:1.6"><b style="color:var(--txt)">Как работать</b><br>
         🗺️ <b>Выезд</b> — осматривайте места и опрашивайте людей.<br>🧪 <b>Улики</b> — отправляйте находки на экспертизу.<br>📱 <b>Телефоны</b> — переписки, звонки, заметки. Кнопка 📌 добавляет сообщение в улики.<br>🏦 <b>Финансы</b> — выписки и владельцы счетов.<br>👥 <b>Люди</b> — допросы. Предъявляйте улики, чтобы ловить на лжи.<br>🚔 <b>Задержание</b> — в досье подозреваемого. Нужно приложить улики-основания.</div>
       </div></div>`;
     bindPersonChips(el);
     $('#accuse').onclick = () => S.accused ? showVerdict() : openAccuse();
+    const an = $('#analyst'); if (an) an.onclick = openAnalyst;
   }
   function knownPeople() { return Object.keys(C.people).filter(p => has('k_' + p) && !C.people[p].colleague); }
   function pt(pid, opts) { const p = C.people[pid]; return P.portrait(Object.assign({ f: !!p.f }, p.pt), Object.assign({ dead: p.victim }, opts || {})); }
@@ -2208,9 +2229,11 @@ window.CASES.push({
       <div class="scene" style="margin-top:14px"><div class="art" style="background:linear-gradient(135deg,${l.art[0]},${l.art[1]})"><span class="em">${l.icon}</span><h2>${esc(l.name)}</h2><small>📍 ${esc(l.addr)}</small></div>
       <div class="body"><p class="desc">${esc(l.desc)}</p>
       ${spots.length ? `<b style="display:block;margin-bottom:8px">🔍 Осмотр</b>${spots.map(s => `<div class="spot ${S.spots[s.id] ? 'done' : ''}" data-s="${s.id}"><span class="i">${S.spots[s.id] ? '✔️' : '🔎'}</span><div style="flex:1"><b>${esc(s.name)}</b>${S.spots[s.id] ? `<div class="res">${esc(s.text)}</div>` : ''}</div></div>`).join('')}` : ''}
+      ${C.k9 && C.k9.loc === id && perk('k9') ? `<div style="margin:14px 0">${has('k9_used') ? '<span class="tag">🐕 Кинолог уже работал на этом месте</span>' : '<button class="btn gold" id="k9b">🐕 Вызвать кинолога</button> <span class="hint">собака пройдёт по следу преступника</span>'}</div>` : ''}
       ${people.length ? `<b style="display:block;margin:16px 0 8px">💬 Поговорить</b><div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(260px,1fr))">${people.map(personChip).join('')}</div>` : ''}
       </div></div></div>`;
     $('#back').onclick = () => renderView();
+    const kb = $('#k9b'); if (kb) kb.onclick = () => { setFlag('k9_used'); S.queue.push({ due: S.play + spd(25), type: 'k9', id: 'k9' }); persist(); toast('🐕 Кинолог с собакой выехали'); renderPending(); openLocation(id); };
     el.querySelectorAll('.spot').forEach(d => d.onclick = () => {
       const s = l.spots.find(x => x.id === d.dataset.s);
       if (!S.spots[s.id]) {
@@ -2305,7 +2328,7 @@ window.CASES.push({
         const ok = a && req(a.req) && gr.every(g => g.some(e => picks.includes(e)));
         closeOv();
         if (!ok) {
-          S.badDetain = (S.badDetain || 0) + 1; persist(); snd('err');
+          if (perk('grace') && !S.graceUsed) { S.graceUsed = 1; toast('🎖️ Право на ошибку: этот отказ не снизит оценку'); } else S.badDetain = (S.badDetain || 0) + 1; persist(); snd('err');
           journal(`Громов отклонил запрос на задержание: ${p.name}.`);
           popup(`<div style="display:flex;gap:14px;align-items:center"><div style="width:64px;flex:none;border-radius:8px;overflow:hidden">${pt('gromov')}</div><h2 style="margin:0">Громов: «Не подпишу»</h2></div><p style="line-height:1.6;margin-top:12px">«Не убедил. ${detainWhy(p, okA, okB, picks)}»</p>`);
           return;
@@ -2373,7 +2396,7 @@ window.CASES.push({
     }
     popup(`<div style="display:flex;gap:16px;align-items:flex-start"><div style="font-size:54px">${e.icon}</div><div><div class="tag">${esc(e.cat)}</div><h2>${esc(e.name)}</h2><p style="line-height:1.6;font-size:15.5px">${esc(e.desc)}</p></div></div>${lab}`, m => {
       const b = m.querySelector('#lab');
-      if (b) b.onclick = () => { S.labs[id] = { done: false }; setFlag('lab_any'); S.queue.push({ due: S.play + e.lab.time, type: 'lab', id }); persist(); snd('click'); toast('🧪 Отправлено на экспертизу'); closeOv(); renderPending(); if (S.view === 'evidence') renderView(); };
+      if (b) b.onclick = () => { S.labs[id] = { done: false }; setFlag('lab_any'); S.queue.push({ due: S.play + spd(e.lab.time), type: 'lab', id }); persist(); snd('click'); toast('🧪 Отправлено на экспертизу'); closeOv(); renderPending(); if (S.view === 'evidence') renderView(); };
     });
   }
 
@@ -2397,7 +2420,7 @@ window.CASES.push({
       </div></div></div></div>`;
     el.querySelectorAll('[data-ph]').forEach(b => b.onclick = () => { PH = { id: b.dataset.ph, tab: 'msgs', chat: null, pin: '' }; renderView(); });
     el.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { PH.tab = b.dataset.tab; PH.chat = null; renderView(); });
-    const tb = $('#tech'); if (tb) tb.onclick = () => { S.tech[PH.id] = { done: false }; S.queue.push({ due: S.play + ph.tech, type: 'tech', id: PH.id }); persist(); toast('🛠️ Телефон передан в техотдел'); renderView(); renderPending(); };
+    const tb = $('#tech'); if (tb) tb.onclick = () => { S.tech[PH.id] = { done: false }; S.queue.push({ due: S.play + spd(ph.tech), type: 'tech', id: PH.id }); persist(); toast('🛠️ Телефон передан в техотдел'); renderView(); renderPending(); };
     drawPhone(ph, open);
   }
   function drawPhone(ph, open) {
@@ -2456,7 +2479,7 @@ window.CASES.push({
       const k = d.dataset.b, b = C.bank[k];
       if (!S.bankReq[k]) {
         if (!req(b.req)) { snd('err'); popup(`<h2>🏦 Банк отказал</h2><p>Нет оснований для запроса. ${esc(b.why || '')}</p>`); return; }
-        S.bankReq[k] = { done: false }; S.queue.push({ due: S.play + b.delay, type: 'bank', id: k }); persist(); toast('🏦 Запрос отправлен в банк'); renderPending(); vBank(el); return;
+        S.bankReq[k] = { done: false }; S.queue.push({ due: S.play + spd(b.delay), type: 'bank', id: k }); persist(); toast('🏦 Запрос отправлен в банк'); renderPending(); vBank(el); return;
       }
       BK = k; vBank(el);
     });
@@ -2484,7 +2507,7 @@ window.CASES.push({
       const k = d.dataset.r, r = C.records[k];
       if (!S.recReq[k]) {
         if (!req(r.req)) { snd('err'); popup(`<h2>${r.icon || '📡'} Отказ</h2><p>${esc(r.why || 'Нет оснований для запроса.')}</p>`); return; }
-        S.recReq[k] = { done: false }; S.queue.push({ due: S.play + (r.delay || 20), type: 'rec', id: k }); persist(); toast('📡 Запрос отправлен'); renderPending(); vRec(el); return;
+        S.recReq[k] = { done: false }; S.queue.push({ due: S.play + spd(r.delay || 20), type: 'rec', id: k }); persist(); toast('📡 Запрос отправлен'); renderPending(); vRec(el); return;
       }
       RK = k; vRec(el);
     });
@@ -2513,7 +2536,7 @@ window.CASES.push({
     el.querySelectorAll('[data-w]').forEach(b => b.onclick = () => {
       const w = C.wiretaps[b.dataset.w];
       if (!req(w.req)) { snd('err'); popup(`<h2>⚖️ Суд отказал</h2><p>${esc(w.why)}</p>`); return; }
-      S.wire[b.dataset.w] = { done: false }; S.queue.push({ due: S.play + w.delay, type: 'wire', id: b.dataset.w }); persist(); toast('⚖️ Санкция получена, номер на прослушке'); vWire(el); renderPending();
+      S.wire[b.dataset.w] = { done: false }; S.queue.push({ due: S.play + spd(w.delay), type: 'wire', id: b.dataset.w }); persist(); toast('⚖️ Санкция получена, номер на прослушке'); vWire(el); renderPending();
     });
     el.querySelectorAll('[data-pin]').forEach(x => x.onclick = () => { give(x.dataset.pin); vWire(el); });
     updateBadges();
@@ -2746,7 +2769,10 @@ window.CASES.push({
     if (!killerOk) score = Math.min(score, 30);
     score = Math.min(100, score);
     let rank = score >= 95 ? 'Легенда Туманска' : score >= 80 ? 'Старший следователь' : score >= 60 ? 'Следователь' : 'Стажёр';
+    const xp0 = profXP();
     S.accused = { score, rank, lines, picks, good: good.length, bonus, lies, killerOk, time: S.play, badDetain: S.badDetain || 0 };
+    const r0 = rankOf(xp0), r1 = rankOf(profXP());
+    if (r1.xp > r0.xp) setTimeout(() => rankUp(r1), 900);
     if (killerOk) { setFlag('case_closed'); snd('win'); } else snd('err');
     persist();
     closeOv();
@@ -2775,6 +2801,104 @@ window.CASES.push({
     return d;
   }
   function closeOv() { document.querySelectorAll('.ov').forEach(o => o.remove()); }
+  // ---------- ЗВАНИЯ ----------
+  const RANKS = [
+    { xp: 0, n: 'Стажёр', ic: '🔰' },
+    { xp: 100, n: 'Лейтенант', ic: '⭐', perk: 'partner', pn: '🧑‍🤝‍🧑 Напарник', pd: 'Выполняет поручения: опрашивает свидетелей, осматривает места, отвозит улики на экспертизу, отправляет запросы.' },
+    { xp: 250, n: 'Старший лейтенант', ic: '⭐⭐', perk: 'k9', pn: '🐕 Кинолог', pd: 'Раз в деле собака пройдёт по следу от места преступления и покажет, как ушёл преступник.' },
+    { xp: 450, n: 'Капитан', ic: '⭐⭐⭐', perk: 'fast', pn: '⚡ Срочные экспертизы', pd: 'Экспертизы, техотдел, банк, запросы и прослушка работают вдвое быстрее.' },
+    { xp: 700, n: 'Майор', ic: '🎖️', perk: 'analyst', pn: '🧠 Аналитик', pd: 'Разбирает материалы дела и показывает, что ещё не проверено.' },
+    { xp: 1000, n: 'Подполковник', ic: '🎖️🎖️', perk: 'grace', pn: '🛡️ Право на ошибку', pd: 'Первый отклонённый запрос на задержание в каждом деле не снижает оценку.' },
+    { xp: 1400, n: 'Полковник', ic: '🎖️🎖️🎖️', perk: 'squad', pn: '🚓 Опергруппа', pd: 'Напарник с опергруппой выполняет поручения втрое быстрее.' },
+    { xp: 2000, n: 'Генерал', ic: '🏅', perk: 'legend', pn: '🏅 Легенда отдела', pd: 'Высшее звание. Громов отдаёт честь первым.' },
+  ];
+  function profXP() { return CASES.reduce((a, c) => { const s2 = caseSt(c); return a + (s2 && s2.accused && s2.accused.killerOk ? (s2.accused.score || 0) + 20 : 0); }, 0); }
+  function rankOf(xp) { let r = RANKS[0]; RANKS.forEach(x => { if (xp >= x.xp) r = x; }); return r; }
+  function perk(k) { const xp = profXP(); return RANKS.some(r => r.perk === k && xp >= r.xp); }
+  function spd(t) { return Math.max(3, Math.ceil(t * (perk('fast') ? 0.5 : 1))); }
+  function ranksHTML() {
+    const xp = profXP(), cur = rankOf(xp), nx = RANKS.find(r => r.xp > xp);
+    return `<h2>🎖️ Звания и помощники</h2><p class="hint">Очки дают за каждое раскрытое дело: оценка суда + 20. Сейчас: <b>${xp}</b>${nx ? ` · до звания «${esc(nx.n)}» — ${nx.xp - xp}` : ' · высшее звание'}.</p>
+      ${nx ? `<div style="height:8px;border-radius:6px;background:rgba(255,255,255,.08);margin:6px 0 14px;overflow:hidden"><div style="height:100%;width:${Math.round((xp - cur.xp) / (nx.xp - cur.xp) * 100)}%;background:var(--gold)"></div></div>` : ''}
+      ${RANKS.map(r => `<div class="card" style="margin-bottom:8px;${xp >= r.xp ? '' : 'opacity:.5'};${r === cur ? 'border-color:var(--gold)' : ''}"><b>${r.ic} ${esc(r.n)}</b> <span class="hint">· ${r.xp} оч.</span>${xp >= r.xp ? ' <span class="tag green">получено</span>' : ' <span class="tag">🔒</span>'}${r.pn ? `<div style="margin-top:4px"><b>${r.pn}</b> — <span class="hint">${esc(r.pd)}</span></div>` : ''}</div>`).join('')}`;
+  }
+  function rankUp(r) {
+    const box = document.createElement('div'); box.className = 'ov'; box.style.zIndex = 80;
+    box.innerHTML = `<div class="modal" style="width:min(520px,92vw);text-align:center"><div style="font-size:54px">${r.ic}</div><div class="tag gold">ПОВЫШЕНИЕ</div><h2 style="margin-top:8px">Новое звание: ${esc(r.n)}</h2><p>Громов: «Заслуженно. Поздравляю».</p>${r.pn ? `<div class="card" style="margin-top:10px;text-align:left"><b>Открыто: ${r.pn}</b><div class="hint" style="margin-top:4px">${esc(r.pd)}</div></div>` : ''}<div class="row" style="justify-content:center"><button class="btn gold" id="rux">Служу закону!</button></div></div>`;
+    document.body.appendChild(box); snd('win');
+    box.querySelector('#rux').onclick = () => { box.remove(); if ($('.desk')) renderDesk(); };
+  }
+  // ---------- напарник ----------
+  function partnerJobs() {
+    const visited = C.locations.filter(l => req(l.req) && has('v_' + l.id));
+    const susp = new Set(Object.values(C.actions || {}).map(a => a.person));
+    const ask = [];
+    visited.forEach(l => (l.people || []).forEach(pid => { const T = C.talk[pid], P = C.people[pid]; if (!T || susp.has(pid) || P.victim || P.colleague) return; T.topics.forEach(t => { if (req(t.req) && !has('t_' + pid + '_' + t.id) && t.id !== 'confess') ask.push([pid, t]); }); }));
+    const spots = []; visited.forEach(l => (l.spots || []).forEach(sp => { if (req(sp.req) && !S.spots[sp.id]) spots.push(sp); }));
+    const labs = S.ev.filter(id => C.evidence[id].lab && !S.labs[id] && req(C.evidence[id].lab.req));
+    const reqs = [];
+    Object.keys(C.bank).forEach(k => { const b = C.bank[k]; if (has('k_' + b.owner) && !S.bankReq[k] && req(b.req)) reqs.push(['bank', k]); });
+    Object.keys(C.records || {}).forEach(k => { const r = C.records[k]; if (recVisible(r) && !S.recReq[k] && req(r.req)) reqs.push(['rec', k]); });
+    return { ask, spots, labs, reqs };
+  }
+  function openPartner() {
+    const busy = S.queue.find(q => q.type === 'partner');
+    const J = partnerJobs();
+    const opts = [['ask', '💬 Опросить свидетелей и персонал', `${J.ask.length} вопр.`, J.ask.length], ['spots', '🔍 Доосмотреть посещённые места', `${J.spots.length} мест`, J.spots.length], ['labs', '🧪 Отвезти улики на экспертизу', `${J.labs.length} шт.`, J.labs.length], ['reqs', '📨 Отправить все доступные запросы', `${J.reqs.length} шт.`, J.reqs.length]];
+    popup(`<h2>🧑‍🤝‍🧑 Напарник: ${esc(C.people.partner ? C.people.partner.name : 'Игорь Белов')}</h2><p class="hint">${busy ? `Сейчас занят поручением — освободится через ${Math.max(0, busy.due - S.play)} с.` : 'Что поручить? Подозреваемых напарник не допрашивает — это ваша работа.'}</p>
+      ${opts.map(([k, t, n, c]) => `<button class="btn ${c && !busy ? 'gold' : ''}" data-o="${k}" style="display:flex;width:100%;justify-content:space-between;margin-top:8px" ${c && !busy ? '' : 'disabled'}><span>${t}</span><span>${n}</span></button>`).join('')}`, m => {
+      m.querySelectorAll('[data-o]').forEach(b => b.onclick = () => { S.queue.push({ due: S.play + (perk('squad') ? 10 : 30), type: 'partner', id: b.dataset.o }); persist(); closeOv(); toast('🧑‍🤝‍🧑 Напарник выехал выполнять поручение'); renderPending(); });
+    });
+  }
+  function doOrder(o) {
+    const J = partnerJobs(); let txt = '';
+    if (o === 'ask') {
+      const who = new Set();
+      J.ask.forEach(([pid, t]) => {
+        const T = C.talk[pid];
+        if (!S.tlog[pid]) { S.tlog[pid] = []; addLines(pid, T.intro, false); }
+        addLines(pid, ['* (Опрос провёл напарник)', '> ' + t.q].concat(t.lines), false);
+        setFlag('k_' + pid); setFlag('t_' + pid + '_' + t.id); setFlags(t.set); (t.give || []).forEach(g => give(g)); if (t.note) journal(t.note);
+        who.add(C.people[pid].name);
+      });
+      txt = who.size ? `Опросил: ${[...who].join(', ')}. Записи разговоров — в карточках людей, новые показания — в уликах.` : 'Опрашивать некого — все уже опрошены.';
+    } else if (o === 'spots') {
+      J.spots.forEach(sp => { S.spots[sp.id] = 1; setFlags(sp.set); (sp.give || []).forEach(g => give(g)); if (sp.note) journal(sp.note); });
+      txt = J.spots.length ? `Осмотрел: ${J.spots.map(x => x.name).join(', ')}. Находки — в уликах.` : 'Всё уже осмотрено.';
+    } else if (o === 'labs') {
+      J.labs.forEach(id => { S.labs[id] = { done: false }; setFlag('lab_any'); S.queue.push({ due: S.play + spd(C.evidence[id].lab.time), type: 'lab', id }); });
+      txt = J.labs.length ? `Отвёз на экспертизу: ${J.labs.map(id => C.evidence[id].name).join(', ')}.` : 'Нечего везти в лабораторию.';
+    } else {
+      J.reqs.forEach(([t, k]) => { if (t === 'bank') { S.bankReq[k] = { done: false }; S.queue.push({ due: S.play + spd(C.bank[k].delay), type: 'bank', id: k }); } else { S.recReq[k] = { done: false }; S.queue.push({ due: S.play + spd(C.records[k].delay || 20), type: 'rec', id: k }); } });
+      txt = J.reqs.length ? `Отправил запросов: ${J.reqs.length}. Ответы придут в «Финансы» и «Запросы».` : 'Все доступные запросы уже отправлены.';
+    }
+    S.inbox.unshift({ id: 'prt_' + S.play, from: C.people.partner ? 'partner' : 'liza', time: clock(), read: false, text: txt });
+    journal('Напарник: ' + txt); snd('msg'); toast('🧑‍🤝‍🧑 Напарник: поручение выполнено');
+    renderPending();
+  }
+  // ---------- аналитик ----------
+  function openAnalyst() {
+    const sus = C.accuse.questions[0].opts.map(o => o[0]).filter(pid => has('k_' + pid));
+    const unclear = sus.filter(pid => !(C.status[pid] || []).some(([f]) => has(f)));
+    const locs = C.locations.filter(l => req(l.req) && !has('v_' + l.id)).length;
+    const spots = C.locations.filter(l => req(l.req) && has('v_' + l.id)).reduce((a, l) => a + (l.spots || []).filter(sp => req(sp.req) && !S.spots[sp.id]).length, 0);
+    const phones = Object.keys(C.phones).filter(k => req(C.phones[k].req) && !has(C.phones[k].openFlag)).length;
+    const J = partnerJobs();
+    const topics = Object.keys(C.talk).filter(pid => has('k_' + pid)).reduce((a, pid) => a + C.talk[pid].topics.filter(t => req(t.req) && !has('t_' + pid + '_' + t.id)).length, 0);
+    const presentable = sus.filter(pid => !S.tlog[pid]).length;
+    const L = [];
+    if (unclear.length) L.push(`👥 Не исключены из подозреваемых: <b>${unclear.map(pid => esc(C.people[pid].name)).join(', ')}</b>. У каждого проверьте показания: где был, с кем общался.`);
+    if (presentable) L.push(`🗣️ Ещё не допрошены: ${presentable}.`);
+    if (topics) L.push(`❓ Незаданных вопросов: ${topics}.`);
+    if (locs) L.push(`🗺️ Непосещённых адресов: ${locs}.`);
+    if (spots) L.push(`🔍 Неосмотренных мест: ${spots}.`);
+    if (phones) L.push(`📱 Закрытых телефонов: ${phones}.`);
+    if (J.labs.length) L.push(`🧪 Улик, которые можно отправить на экспертизу: ${J.labs.length}.`);
+    if (J.reqs.length) L.push(`📨 Доступных, но не отправленных запросов: ${J.reqs.length}.`);
+    if (!L.length) L.push('Материалы изучены полностью. Сопоставьте показания с уликами — где-то слова не сходятся с фактами.');
+    L.push('💡 Совет: ложь чаще всего видна, если предъявить человеку улику, которая противоречит его ответу на вопрос «где вы были» или «общались ли вы».');
+    popup(`<h2>🧠 Аналитик</h2>${L.map(x => `<p style="margin:8px 0;line-height:1.5">${x}</p>`).join('')}`);
+  }
   function popup(html, onMount, onClose) {
     const d = overlay(`<div class="modal">${html}<div class="row"><button class="btn" id="pc">Закрыть</button></div></div>`);
     $('#pc').onclick = () => { closeOv(); if (onClose) onClose(); };
@@ -2808,7 +2932,7 @@ window.CASES.push({
       <div class="caselist">
       ${CASES.map((c, i) => { const st = caseSt(c); const done = st && st.accused && st.accused.killerOk; const k = done ? 'done' : st ? 'prog' : 'new'; if (FILT !== 'all' && FILT !== k) return ''; const ic = c._meta ? { murder: '🔪', poison: '🧪', theft: '💰', arson: '🔥' }[c._meta.crime] : '💎'; return `<div class="casecard" data-n="${c.num || i + 1}" data-c="${c.id}"><span class="cic">${ic}</span><h3>${esc(c.title)}</h3><div class="m">${esc(c.subtitle)}</div><div style="margin-top:10px;font-weight:600;font-size:13.5px">${done ? `✅ ${st.accused.score}/100 · ${esc(st.accused.rank)}` : st ? '🔎 В процессе' : (i === 0 ? '⭐ Авторское дело' : 'Новое дело')}</div></div>`; }).join('')}
       </div>
-      <div style="display:flex;gap:10px;margin-top:22px;flex-wrap:wrap;justify-content:center"><span class="chip" style="padding:9px 14px">🕵️ ${esc(USER)}</span><button class="btn" id="lo">Сменить детектива</button><button class="btn" id="snd">${SAVE.settings.sound ? '🔊 Звук включён' : '🔈 Звук выключен'}</button>${NATIVE ? '<button class="btn red" id="quit">⏻ Выйти из игры</button>' : ''}</div>${NATIVE ? '<div class="hint" style="margin-top:12px">F11 — переключить полноэкранный и оконный режим</div>' : ''}</div>`;
+      <div style="display:flex;gap:10px;margin-top:22px;flex-wrap:wrap;justify-content:center"><span class="chip" style="padding:9px 14px">${rankOf(profXP()).ic} ${esc(rankOf(profXP()).n)} ${esc(USER)} · ${profXP()} оч.</span><button class="btn" id="ranksB">🎖️ Звания</button><button class="btn" id="lo">Сменить детектива</button><button class="btn" id="snd">${SAVE.settings.sound ? '🔊 Звук включён' : '🔈 Звук выключен'}</button>${NATIVE ? '<button class="btn red" id="quit">⏻ Выйти из игры</button>' : ''}</div>${NATIVE ? '<div class="hint" style="margin-top:12px">F11 — переключить полноэкранный и оконный режим</div>' : ''}</div>`;
     document.querySelectorAll('.filters [data-f]').forEach(b => b.onclick = () => { FILT = b.dataset.f; screenTitle(); });
     document.querySelectorAll('.casecard[data-c]').forEach(d => d.onclick = () => {
       const id = d.dataset.c, st = SAVE.cases[id];
@@ -2822,6 +2946,7 @@ window.CASES.push({
     });
     $('#snd').onclick = () => { SAVE.settings.sound = !SAVE.settings.sound; persist(); screenTitle(); };
     $('#lo').onclick = logout;
+    const rb = $('#ranksB'); if (rb) rb.onclick = () => popup(ranksHTML());
     const q = $('#quit'); if (q) q.onclick = askQuit;
   }
 
@@ -2879,6 +3004,6 @@ window.CASES.push({
     armBack();
     if (STORE.auto && STORE.profiles[STORE.auto]) login(STORE.auto); else screenAuth();
   });
-  window.__HP = { get S() { return S; }, get C() { return C; } };
+  window.__HP = { get S() { return S; }, get C() { return C; }, get SAVE() { return SAVE; }, profXP: () => profXP(), rerender: () => screenTitle() };
 })();
 </script></body></html>

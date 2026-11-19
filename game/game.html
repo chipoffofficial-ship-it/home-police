@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>HOME POLICE</title><meta name="hp-version" content="7"><script>(function(){var V=7;window.HP_VERSION=V;
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>HOME POLICE</title><meta name="hp-version" content="8"><script>(function(){var V=8;window.HP_VERSION=V;
 if(navigator.userAgent.indexOf('; wv)')<0||window.__HP_BOOTED)return;
 try{var c=JSON.parse(localStorage.getItem('hp_game_cache')||'null');
 if(c&&c.ver>V&&c.html&&c.html.indexOf('name="hp-version" content="'+c.ver+'"')>0){window.__HP_SKIP=true;
@@ -323,6 +323,7 @@ textarea.notes{width:100%;min-height:200px;background:#0f141d;border:1px solid #
 .caselist{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px 16px;width:min(1180px,94vw);margin-top:16px;padding-top:20px}
 .casecard .cic{position:absolute;right:14px;top:10px;font-size:28px}
 .casecard h3{padding-right:36px;font-size:20px}
+.casecard.tut:before{content:"ОБУЧЕНИЕ"}
 </style></head><body><div id="fog"><i></i><i></i></div><div id="app"></div>
 <script>// ===== Портреты персонажей и «фотографии» =====
 (function (root) {
@@ -1164,7 +1165,8 @@ window.CASES.push({
     young: { o: ['Короче. ', 'Ну типа… ', 'Блин. ', 'Слушай… то есть слушайте. '], c: [' Вот реально.', ' Жесть, короче.', ' Ну я не знаю, правда.', ' Капец ситуация.'] },
   };
   function voiceFix(f, s) { return s.replace(/\{а\}/g, f ? 'а' : '').replace(/\{ла\}/g, f ? 'ла' : '').replace(/\{ся\}/g, f ? 'ась' : 'ся'); }
-  function genCase(num) {
+  function genCase(num, opt) {
+    const TUT = !!(opt && opt.tutorial);
     const R = rngFrom(num * 7919 + 1301);
     const pick = a => a[Math.floor(R() * a.length)];
     const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(R() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
@@ -1174,7 +1176,8 @@ window.CASES.push({
     // выбор варианта без повторов внутри одного дела
     const vp = a => { const free = a.filter(x => !usedStr.has(x)); const pool = free.length ? free : a; const c = pool[Math.floor(RT() * pool.length)]; if (typeof c === 'string' && c.length > 12) usedStr.add(c); return c; };
     const ST = SETTINGS[(num * 5 + Math.floor(R() * 3)) % SETTINGS.length];
-    const crime = pick(['murder', 'murder', 'murder', 'murder', 'poison', 'theft', 'theft', 'theft', 'arson', 'arson']);
+    const crime0 = pick(['murder', 'murder', 'murder', 'murder', 'poison', 'theft', 'theft', 'theft', 'arson', 'arson']);
+    const crime = TUT ? 'theft' : crime0;
     const dead = crime === 'murder';
     const alive = crime === 'theft' || crime === 'arson';
     const pname = pick(ST.names);
@@ -1188,10 +1191,10 @@ window.CASES.push({
     const tMin = 21 * 60 + 20 + Math.floor(R() * 37) * 2;
     // способы раскрытия: у каждого дела своя комбинация
     const RR = rngFrom(num * 31337 + 911);
-    const routeB = ['bank', 'billing', 'taxi', 'tcard', 'plate'][num % 5];
-    const routeA = alive ? ['chat', 'call'][Math.floor(num / 15) % 2] : ['chat', 'call', 'memo'][Math.floor(num / 15) % 3];
-    const catchBy = ['dna', 'phone', 'search'][Math.floor(num / 5) % 3];
-    const witKind = routeB === 'plate' ? 'car' : routeB === 'taxi' ? 'taxi' : routeB === 'tcard' ? 'foot' : (RR() < 0.5 ? 'car' : 'voice');
+    const routeB = TUT ? 'bank' : ['bank', 'billing', 'taxi', 'tcard', 'plate'][num % 5];
+    const routeA = TUT ? 'chat' : alive ? ['chat', 'call'][Math.floor(num / 15) % 2] : ['chat', 'call', 'memo'][Math.floor(num / 15) % 3];
+    const catchBy = TUT ? 'search' : ['dna', 'phone', 'search'][Math.floor(num / 5) % 3];
+    const witKind = TUT ? 'car' : routeB === 'plate' ? 'car' : routeB === 'taxi' ? 'taxi' : routeB === 'tcard' ? 'foot' : (RR() < 0.5 ? 'car' : 'voice');
     const pinKind = num % 3 === 1 ? 'year' : 'date';
     const foundY = 1996 + Math.floor(RR() * 20);
     const hm = m => { m = ((m % 1440) + 1440) % 1440; return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); };
@@ -1284,7 +1287,8 @@ window.CASES.push({
     INN.forEach((p, i) => { p.venue = i < nSecret ? secrets[i] : opens[i]; p.secret = i < nSecret; });
     // уловка
     const tricksBy = { murder: ['stage', 'reporter', 'plant', 'fakealibi'], poison: ['reporter', 'plant', 'fakealibi'], theft: ['stage', 'plant', 'fakealibi'], arson: ['stage', 'reporter', 'plant', 'fakealibi'] };
-    const trick = pick(tricksBy[crime]);
+    const trick0 = pick(tricksBy[crime]);
+    const trick = TUT ? 'stage' : trick0;
     const plantOwner = trick === 'plant' ? pick(INN) : null;
     const plantItem = pick(PLANTS);
     INN.forEach(p => { const st = p.venue.staff; const s = mkPerson(chance(.5), st[0] + ' «' + p.venue.n.split('«')[1], 22, 55); s.staffFor = p.id; s.pt.hair = s.f ? (['long', 'bob', 'bun', 'ponytail'].includes(st[1]) ? st[1] : 'bun') : (['short', 'slick', 'buzz', 'side', 'messy', 'beanie'].includes(st[1]) ? st[1] : 'short'); s.pt.collar = st[3]; p.staff = s; });
@@ -1747,6 +1751,23 @@ window.CASES.push({
     if (!alive) messages.push({ id: 'm_pin', req: ['ev_vphone', '!vphone_open'], delay: 45, from: 'liza', text: 'Телефон жертвы могу вскрыть, но это минута-полторы. Или попробуй PIN сам — люди ставят важные даты.' });
     if (FE) messages.push({ id: 'm_fe', req: ['k_' + FE.id], delay: 3, from: 'liza', text: `ИП ${FE.sur} — ${FE.db.work}. Судимость за скупку краденого. Можно запросить прослушку.` });
 
+    if (TUT) {
+      const H = (id, req, text) => messages.push({ id: 'tut' + id, req, delay: 4, from: 'gromov', text: '🎓 ' + text });
+      const offW = 'Улица ' + street;
+      H(1, ['!v_scene'], 'Подсказка: открой «🗺️ Выезд» и поезжай на место происшествия. Начинать всегда стоит с осмотра.');
+      H(2, ['v_scene'], 'На месте нажимай на пункты с 🔎 — так находят улики. Всё найденное попадает в раздел «🧪 Улики».');
+      H(3, ['ev_trace'], 'Есть след! Открой «🧪 Улики», выбери его и нажми «Отправить на экспертизу». Экспертиза идёт в реальном времени — пока ждёшь, работай дальше.');
+      H(4, ['lab_any'], `Теперь свидетели: «🗺️ Выезд» → «${offW}». Опроси обоих — они могли видеть то, чего не видели мы.`);
+      H(5, ['ev_witness'], 'Свидетель запомнил машину. Машины подозреваемых есть в «🗄️ База данных» — потом сравнишь.');
+      H(6, ['ev_witness', '!vphone_open'], `Поговори с ${V.ins}: «🗺️ Выезд» → «${V.name}». Попроси телефон — в переписках часто прячется главное.`);
+      H(7, ['vphone_open'], 'Телефон у нас. «📱 Телефоны» → чаты. Важные сообщения закрепляй кнопкой 📌 — они становятся уликами. Подозреваемые теперь в «👥 Люди».');
+      H(8, ['ev_contact'], 'Кто-то в день кражи выяснял, когда хозяин уйдёт. Допроси этого человека: «👥 Люди» → карточка → «💬 Допросить». Спроси, где был и общался ли с потерпевшим.');
+      H(9, [S.map(p => 't_' + p.id + '_where')], 'Слова надо проверять. «🏦 Финансы» → запроси выписку подозреваемого и ищи оплаты в вечер кражи. Важное закрепи 📌.');
+      H(10, ['ev_cbank'], 'Оплата рядом с местом кражи — а человек говорил, что был дома! Открой допрос и нажми «📂 Предъявить улику». Ложь лучше всего ловить на вопросах «где были» и «общались ли».');
+      H(11, [['c_lie1', 'c_lie2']], 'Поймал на лжи! Теперь задержание: «👥 Люди» → карточка → «🚔 Запросить задержание». Выбери улику о контакте с потерпевшим и улику, что человек был на месте.');
+      H(12, ['detained'], 'Задержан! Теперь обыск: «🗺️ Выезд» → «Обыск». Найденное предъяви задержанному на допросе.');
+      H(13, ['confession'], 'Признание есть! «📁 Дело» → «Предъявить обвинение»: виновный, мотив, как запутывал следствие и до 4 сильных улик. Удачи в суде!');
+    }
     // c_broken: при двух уликах после задержания
     // (тема признания открывается флагом c_broken)
 
@@ -1812,7 +1833,7 @@ window.CASES.push({
     const subtitle = `${{ murder: 'Убийство', poison: 'Отравление', theft: 'Кража', arson: 'Поджог' }[crime]}: ${place}`;
     const diff = crime === 'murder' ? 3 : crime === 'poison' ? 3 : 2;
     return {
-      id: 'g' + num, num: num + 1, gen: GEN_VER, title, subtitle, date: `${WDAYS[wd]}, ${nextS}`, diff,
+      id: TUT ? 'tut' : 'g' + num, num: TUT ? 0 : num + 1, gen: GEN_VER, tutorial: TUT, title: TUT ? 'Первое дело' : title, subtitle: TUT ? 'Обучение · ' + subtitle : subtitle, date: `${WDAYS[wd]}, ${nextS}`, diff,
       intro: [
         { murder: `${dateS}, поздний вечер. ${V.name}, ${V.role}, найден${G(V, '', 'а')} мёртв${G(V, 'ым', 'ой')} в ${pl.prep}. Тот, кто это сделал, ${G(V, 'его', 'её')} знал: дверь не взломана, а удар нанесён сзади.`, poison: `${dateS}. ${V.name}, ${V.role}, в реанимации: отравление. Яд был в бокале — значит, отравитель сидел за одним столом.`, theft: `В ночь на ${nextS} из ${pl.gen} украли ${loot}. Сейф не взломан, а открыт кодом.`, arson: `${dateS}, ночь. ${pl.nom[0].toUpperCase() + pl.nom.slice(1)} горит. Пожарные уверены: это поджог.` }[crime],
         `Под подозрением пятеро — у каждого своя причина и своя тайна. Кто-то лжёт, чтобы скрыть преступление, кто-то — чтобы скрыть собственный секрет.`,
@@ -1844,7 +1865,7 @@ window.CASES.push({
   }
   root.CaseGen = { genCase, genAll, GEN_VER };
 })(typeof window !== 'undefined' ? window : globalThis);
-</script><script>window.CASES.push(...window.CaseGen.genAll(100));</script><script>// ===== HOME POLICE — движок детектива =====
+</script><script>window.CASES.push(...window.CaseGen.genAll(100));window.CASES.unshift(window.CaseGen.genCase(424242,{tutorial:true}));</script><script>// ===== HOME POLICE — движок детектива =====
 (function () {
   'use strict';
   if (window.__HP_SKIP) return; // загружается обновлённая версия
@@ -1908,11 +1929,10 @@ window.CASES.push({
     if (!mode) mode = names.length ? 'login' : 'reg';
     const sel = STORE.last && STORE.profiles[STORE.last] ? STORE.last : names[0];
     let form = '';
-    if (mode === 'login') form = `<h2 style="margin:0 0 4px;font-family:Georgia">Вход</h2><p class="hint">Выберите детектива и введите PIN-код.</p>
-      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px">${names.map(n => `<button class="btn sm ${n === sel ? 'gold' : ''}" data-u="${esc(n)}">🕵️ ${esc(n)}</button>`).join('')}</div>
-      <input id="pin" class="inp" type="password" inputmode="numeric" maxlength="6" placeholder="PIN-код" autocomplete="current-password">
-      <label class="hint" style="display:flex;gap:8px;align-items:center;margin:10px 0 0"><input type="checkbox" id="rem" checked> Не выходить на этом устройстве</label>
+    if (mode === 'login') form = `<div style="text-align:center"><div class="hint">С возвращением,</div><h2 id="who" style="margin:4px 0 2px;font-family:Georgia;font-size:28px">🕵️ ${esc(sel)}</h2><div class="hint" style="margin-bottom:14px">Введите свой PIN-код</div></div>
+      <input id="pin" class="inp" type="password" inputmode="numeric" maxlength="6" placeholder="PIN-код" autocomplete="current-password" style="text-align:center;font-size:22px;letter-spacing:6px">
       <button class="btn gold" id="go" style="width:100%;margin-top:14px">Войти</button>
+      ${names.length > 1 ? `<div class="hint" style="margin-top:16px">Другой детектив:</div><div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px">${names.map(n => `<button class="btn sm ${n === sel ? 'gold' : ''}" data-u="${esc(n)}">${esc(n)}</button>`).join('')}</div>` : ''}
       <div style="margin-top:14px"><button class="btn sm" id="toReg">+ Новый детектив</button></div>`;
     else if (mode === 'reg') form = `<h2 style="margin:0 0 4px;font-family:Georgia">Регистрация детектива</h2><p class="hint">Профиль и прогресс хранятся на этом устройстве.</p>
       <input id="nm" class="inp" maxlength="20" placeholder="Имя детектива" autocomplete="username">
@@ -1924,7 +1944,7 @@ window.CASES.push({
       <div class="card auth" style="width:min(440px,92vw);margin-top:22px;text-align:left;padding:22px">${form}<div id="msg" style="color:#ff9a90;margin-top:10px;min-height:20px;font-size:14px"></div></div></div>`;
     const msg = t => { $('#msg').textContent = t; if (t) snd('err'); };
     let cur = sel;
-    document.querySelectorAll('[data-u]').forEach(b => b.onclick = () => { cur = b.dataset.u; document.querySelectorAll('[data-u]').forEach(x => x.classList.toggle('gold', x === b)); $('#pin').focus(); });
+    document.querySelectorAll('[data-u]').forEach(b => b.onclick = () => { cur = b.dataset.u; document.querySelectorAll('[data-u]').forEach(x => x.classList.toggle('gold', x === b)); const w = $('#who'); if (w) w.textContent = '🕵️ ' + cur; $('#msg').textContent = ''; $('#pin').value = ''; $('#pin').focus(); });
     const tr = $('#toReg'); if (tr) tr.onclick = () => screenAuth('reg');
     const tl = $('#toLog'); if (tl) tl.onclick = () => screenAuth(Object.keys(STORE.profiles).length ? 'login' : 'reg');
     const go = () => {
@@ -1932,7 +1952,7 @@ window.CASES.push({
         const pin = $('#pin').value.trim();
         if (!cur) { msg('Выберите детектива'); return; }
         if (pinHash(cur, pin) !== STORE.profiles[cur].hash) { msg('Неверный PIN-код'); $('#pin').value = ''; return; }
-        STORE.auto = $('#rem').checked ? cur : null;
+        STORE.auto = null; STORE.last = cur;
         login(cur);
       } else if (mode === 'reg') {
         const nm = $('#nm').value.trim().replace(/\s+/g, ' ');
@@ -1944,7 +1964,7 @@ window.CASES.push({
         const first = !Object.keys(STORE.profiles).length;
         STORE.profiles[nm] = { hash: pinHash(nm, pin), created: Date.now(), save: (first && LEGACY) ? LEGACY : { v: 3, cases: {}, settings: { sound: true } } };
         LEGACY = null;
-        STORE.auto = nm;
+        STORE.auto = null; STORE.last = nm;
         snd('win');
         login(nm);
       }
@@ -2801,6 +2821,75 @@ window.CASES.push({
     return d;
   }
   function closeOv() { document.querySelectorAll('.ov').forEach(o => o.remove()); }
+  // ---------- РУКОВОДСТВО ----------
+  const GUIDE = [
+    ['🎯 Цель', [
+      'Вы — следователь полиции Туманска. В каждом деле есть преступление и пятеро подозреваемых. Виновен один.',
+      'Нужно собрать улики, разоблачить ложь, задержать преступника, добиться признания и передать дело в суд.',
+      'Врут не только виновные: у невиновных бывают свои секреты. Главное — понять, <b>почему</b> человек врёт.',
+    ]],
+    ['🧭 С чего начать', [
+      '1. Ответьте на звонок Громова — он расскажет о деле.',
+      '2. «🗺️ Выезд» → место происшествия: осмотрите всё, что отмечено 🔎.',
+      '3. Найденное отправьте на экспертизу: «🧪 Улики» → выберите улику → «Отправить на экспертизу».',
+      '4. Опросите свидетелей на улице, получите и разблокируйте телефон потерпевшего.',
+      '5. Допросите подозреваемых: «👥 Люди» → карточка → «Допросить».',
+      'Список задач по делу — в разделе «📁 Дело». Справа показан ход расследования.',
+    ]],
+    ['🗣️ Допросы', [
+      'Задавайте вопросы из списка. Новые вопросы появляются по ходу дела.',
+      'Самое важное — <b>«📂 Предъявить улику»</b>. Если показания расходятся с уликой, человек будет пойман на лжи.',
+      'Чаще всего врут на вопросы «Где вы были?» и «Общались ли вы с потерпевшим?». Проверяйте именно их.',
+      'Разоблачённая ложь записывается в журнал, а у человека появляется отметка.',
+    ]],
+    ['📱 Телефоны', [
+      'В телефонах есть чаты, звонки, контакты, заметки, диктофон и фото. Важное закрепляйте кнопкой 📌 — так сообщение станет уликой.',
+      'Телефон с PIN-кодом можно открыть самому: подсказка обычно спрятана в доме потерпевшего. Или отдать в техотдел — это дольше.',
+      'Телефон задержанного вскрывает только техотдел. Иногда удалённое удаётся восстановить.',
+    ]],
+    ['🏦 Финансы и 📡 Запросы', [
+      '«Финансы»: банковские выписки подозреваемых — где и когда человек платил картой. Неизвестный счёт можно «установить владельца».',
+      '«Запросы»: оператор связи (где был телефон, кому принадлежит номер), такси, транспортные карты, дорожные камеры.',
+      'Многие запросы дают только с основанием — например, после того как человек сказал, где был.',
+      '«🎧 Прослушка» требует санкции суда и серьёзных оснований.',
+    ]],
+    ['🚔 Задержание', [
+      'Задержать можно любого подозреваемого, но Громов подпишет, только если улики докажут две вещи:',
+      '<b>1)</b> именно этот человек связывался с потерпевшим незадолго до преступления (переписка, звонок, запись);',
+      '<b>2)</b> именно его можно поставить на место преступления (оплата, геолокация, поездка, камера, ложное алиби).',
+      'Если не хватает — Громов скажет, какого пункта. Каждый отклонённый запрос снижает итоговую оценку.',
+    ]],
+    ['⚖️ Признание и суд', [
+      'После задержания: образец ДНК, телефон задержанного, обыск. В каждом деле срабатывает свой путь — что-то из этого сломает преступника.',
+      'Предъявите найденное на допросе — и задержанный признается.',
+      '«📁 Дело» → «Предъявить обвинение»: кто, мотив, как запутывал следствие и до 4 сильнейших улик. Суд выставит оценку до 100.',
+    ]],
+    ['🎖️ Звания и помощники', [
+      'За каждое раскрытое дело — очки (оценка суда + 20). Очки повышают звание.',
+      'Лейтенант — напарник выполняет поручения. Старший лейтенант — кинолог. Капитан — срочные экспертизы. Майор — аналитик. Подполковник — право на ошибку. Полковник — опергруппа.',
+      'Полный список — кнопка «🎖️ Звания» в главном меню.',
+    ]],
+    ['💡 Советы', [
+      'Записывайте догадки в «📓 Журнал» → «Мои заметки».',
+      'Если застряли — «📞 Позвонить Громову»: он подскажет следующий шаг, не называя виновного.',
+      'Время экспертиз и запросов идёт, пока вы работаете: пока ждёте — допрашивайте.',
+      'Прогресс сохраняется автоматически. Обновления игры загружаются при запуске.',
+    ]],
+  ];
+  function openGuide() {
+    let gi = 0;
+    popup('<div id="gd"></div>', m => {
+      const draw = () => {
+        m.querySelector('#gd').innerHTML = `<h2>📖 Как играть</h2><div class="ptabs" style="margin-bottom:12px">${GUIDE.map((g, i) => `<button class="ptab ${i === gi ? 'on' : ''}" data-g="${i}">${g[0]}</button>`).join('')}</div>
+          <div class="card">${GUIDE[gi][1].map(t => `<p style="margin:7px 0;line-height:1.55">${t}</p>`).join('')}</div>
+          <div class="row" style="justify-content:space-between;margin-top:10px">${gi ? '<button class="btn sm" id="gp">← Назад</button>' : '<span></span>'}${gi < GUIDE.length - 1 ? '<button class="btn sm gold" id="gn">Далее →</button>' : ''}</div>`;
+        m.querySelectorAll('[data-g]').forEach(b => b.onclick = () => { gi = +b.dataset.g; draw(); });
+        const gp = m.querySelector('#gp'); if (gp) gp.onclick = () => { gi--; draw(); };
+        const gn = m.querySelector('#gn'); if (gn) gn.onclick = () => { gi++; draw(); };
+      };
+      draw();
+    });
+  }
   // ---------- ЗВАНИЯ ----------
   const RANKS = [
     { xp: 0, n: 'Стажёр', ic: '🔰' },
@@ -2930,9 +3019,9 @@ window.CASES.push({
     app.innerHTML = `<div class="title fade"><div class="logoimg">${BADGE_SVG}</div><h1 class="logo">HOME POLICE</h1><div class="sub">Детективные расследования туманного города</div>
       <div class="filters">${[['all', 'Все'], ['new', 'Новые'], ['prog', 'В процессе'], ['done', 'Раскрытые']].map(([k, l]) => `<button class="btn sm ${FILT === k ? 'gold' : ''}" data-f="${k}">${l}</button>`).join('')}<span class="chip">Раскрыто: <b>${CASES.filter(c => { const s2 = caseSt(c); return s2 && s2.accused && s2.accused.killerOk; }).length}</b> из ${CASES.length}</span></div>
       <div class="caselist">
-      ${CASES.map((c, i) => { const st = caseSt(c); const done = st && st.accused && st.accused.killerOk; const k = done ? 'done' : st ? 'prog' : 'new'; if (FILT !== 'all' && FILT !== k) return ''; const ic = c._meta ? { murder: '🔪', poison: '🧪', theft: '💰', arson: '🔥' }[c._meta.crime] : '💎'; return `<div class="casecard" data-n="${c.num || i + 1}" data-c="${c.id}"><span class="cic">${ic}</span><h3>${esc(c.title)}</h3><div class="m">${esc(c.subtitle)}</div><div style="margin-top:10px;font-weight:600;font-size:13.5px">${done ? `✅ ${st.accused.score}/100 · ${esc(st.accused.rank)}` : st ? '🔎 В процессе' : (i === 0 ? '⭐ Авторское дело' : 'Новое дело')}</div></div>`; }).join('')}
+      ${CASES.map((c, i) => { const st = caseSt(c); const done = st && st.accused && st.accused.killerOk; const k = done ? 'done' : st ? 'prog' : 'new'; if (FILT !== 'all' && FILT !== k) return ''; const ic = c._meta ? { murder: '🔪', poison: '🧪', theft: '💰', arson: '🔥' }[c._meta.crime] : '💎'; return `<div class="casecard${c.tutorial ? ' tut' : ''}" data-n="${c.tutorial ? 0 : c.num || i}" data-c="${c.id}"><span class="cic">${ic}</span><h3>${esc(c.title)}</h3><div class="m">${esc(c.subtitle)}</div><div style="margin-top:10px;font-weight:600;font-size:13.5px">${done ? `✅ ${st.accused.score}/100 · ${esc(st.accused.rank)}` : st ? '🔎 В процессе' : (c.tutorial ? '🎓 Начните с него: обучение с подсказками' : c.id === 'case1' || (!c._meta && !c.tutorial) ? '⭐ Авторское дело' : 'Новое дело')}</div></div>`; }).join('')}
       </div>
-      <div style="display:flex;gap:10px;margin-top:22px;flex-wrap:wrap;justify-content:center"><span class="chip" style="padding:9px 14px">${rankOf(profXP()).ic} ${esc(rankOf(profXP()).n)} ${esc(USER)} · ${profXP()} оч.</span><button class="btn" id="ranksB">🎖️ Звания</button><span class="chip" style="padding:9px 14px">Версия ${window.HP_VERSION || 1} · <span id="updst">${NATIVE || WV ? 'проверка обновлений…' : 'онлайн'}</span></span><button class="btn" id="lo">Сменить детектива</button><button class="btn" id="snd">${SAVE.settings.sound ? '🔊 Звук включён' : '🔈 Звук выключен'}</button>${NATIVE ? '<button class="btn red" id="quit">⏻ Выйти из игры</button>' : ''}</div>${NATIVE ? '<div class="hint" style="margin-top:12px">F11 — переключить полноэкранный и оконный режим</div>' : ''}</div>`;
+      <div style="display:flex;gap:10px;margin-top:22px;flex-wrap:wrap;justify-content:center"><span class="chip" style="padding:9px 14px">${rankOf(profXP()).ic} ${esc(rankOf(profXP()).n)} ${esc(USER)} · ${profXP()} оч.</span><button class="btn gold" id="guideB">📖 Как играть</button><button class="btn" id="ranksB">🎖️ Звания</button><span class="chip" style="padding:9px 14px">Версия ${window.HP_VERSION || 1} · <span id="updst">${NATIVE || WV ? (UPD_STATE || '—') : 'онлайн'}</span></span><button class="btn" id="lo">Сменить детектива</button><button class="btn" id="snd">${SAVE.settings.sound ? '🔊 Звук включён' : '🔈 Звук выключен'}</button>${NATIVE ? '<button class="btn red" id="quit">⏻ Выйти из игры</button>' : ''}</div>${NATIVE ? '<div class="hint" style="margin-top:12px">F11 — переключить полноэкранный и оконный режим</div>' : ''}</div>`;
     document.querySelectorAll('.filters [data-f]').forEach(b => b.onclick = () => { FILT = b.dataset.f; screenTitle(); });
     document.querySelectorAll('.casecard[data-c]').forEach(d => d.onclick = () => {
       const id = d.dataset.c, st = SAVE.cases[id];
@@ -2947,6 +3036,7 @@ window.CASES.push({
     $('#snd').onclick = () => { SAVE.settings.sound = !SAVE.settings.sound; persist(); screenTitle(); };
     $('#lo').onclick = logout;
     const rb = $('#ranksB'); if (rb) rb.onclick = () => popup(ranksHTML());
+    const gb = $('#guideB'); if (gb) gb.onclick = openGuide;
     const q = $('#quit'); if (q) q.onclick = askQuit;
   }
 
@@ -3016,11 +3106,68 @@ window.CASES.push({
     setTimeout(() => d.remove(), 30000);
   }
 
+  // ---------- экран запуска: проверка и загрузка обновления ----------
+  let UPD_STATE = '';
+  async function findUpdate(step) {
+    const cur = window.HP_VERSION || 0;
+    try {
+      if (NATIVE) { const lv = parseInt(await (await fetch('/api/ver', { cache: 'no-store' })).text()) || 0; if (lv > cur) return { state: 'ready', ver: lv }; }
+      let cached = null; if (WV) { try { cached = JSON.parse(localStorage.getItem('hp_game_cache') || 'null'); } catch (e) { cached = null; } }
+      step('Проверка обновлений…', null);
+      const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 12000);
+      const v = await (await fetch(UPD + 'version.json?t=' + Date.now(), { cache: 'no-store', signal: ctl.signal })).json();
+      clearTimeout(tm);
+      if (cached && cached.ver > cur && !(v && v.version > cached.ver)) return { state: 'ready', ver: cached.ver };
+      if (!v || !(v.version > cur)) return { state: 'none' };
+      step(`Найдена версия ${v.version}. Загрузка…`, 0);
+      const r = await fetch(UPD + 'game.html?v=' + v.version, { cache: 'no-store' });
+      const total = +(r.headers.get('content-length') || 0) || 400000;
+      const rd = r.body.getReader(); const parts = []; let got = 0;
+      for (;;) { const x = await rd.read(); if (x.done) break; parts.push(x.value); got += x.value.length; step(`Загрузка версии ${v.version}… ${Math.min(99, Math.round(got / total * 100))}%`, Math.min(0.99, got / total)); }
+      const buf = new Uint8Array(got); let o = 0; parts.forEach(pt => { buf.set(pt, o); o += pt.length; });
+      const html = new TextDecoder('utf-8').decode(buf);
+      if (html.indexOf('name="hp-version" content="' + v.version + '"') < 0 || html.length < 100000) return { state: 'offline' };
+      step('Установка обновления…', 1);
+      if (NATIVE) await fetch('/api/update', { method: 'POST', body: html });
+      else localStorage.setItem('hp_game_cache', JSON.stringify({ ver: v.version, html }));
+      return { state: 'ready', ver: v.version };
+    } catch (e) { return { state: 'offline' }; }
+  }
+  function startGame() { screenAuth(); }
+  async function screenBoot() {
+    const cur = window.HP_VERSION || 0;
+    app.innerHTML = `<div class="title fade"><div class="logoimg">${BADGE_SVG}</div><h1 class="logo">HOME POLICE</h1><div class="sub">Версия ${cur}</div><div class="card" style="width:min(440px,92vw);margin-top:22px;text-align:center;padding:24px">
+      <div id="bst" style="margin-top:22px;min-height:22px"><span class="spin"></span> Подключение к серверу…</div>
+      <div style="height:8px;border-radius:6px;background:rgba(255,255,255,.08);margin:14px 0 4px;overflow:hidden"><div id="bpr" style="height:100%;width:0;background:var(--gold);transition:width .2s"></div></div>
+      <div id="bbt" class="row" style="justify-content:center;margin-top:18px;flex-wrap:wrap"></div></div></div>`;
+    const st = (t, f) => { const e = $('#bst'); if (e) e.innerHTML = `<span class="spin"></span> ${esc(t)}`; const b = $('#bpr'); if (b) b.style.width = f == null ? '35%' : Math.round(f * 100) + '%'; };
+    const res = await findUpdate(st);
+    const bst = $('#bst'), bbt = $('#bbt'), bpr = $('#bpr'); if (!bst) return;
+    if (res.state === 'ready') {
+      UPD_STATE = 'загружена версия ' + res.ver;
+      bpr.style.width = '100%';
+      bst.innerHTML = `🔄 Доступна новая версия <b>${res.ver}</b> (у вас ${cur}). Прогресс и профили сохранятся.`;
+      bbt.innerHTML = '<button class="btn gold" id="bup">⬇️ Обновить</button><button class="btn" id="bplay">Играть без обновления</button>';
+      $('#bup').onclick = () => { bst.innerHTML = '<span class="spin"></span> Перезапуск…'; setTimeout(() => location.reload(), 300); };
+    } else if (res.state === 'none') {
+      UPD_STATE = 'актуальная';
+      bpr.style.width = '100%';
+      bst.innerHTML = `✅ Установлена последняя версия (${cur}).`;
+      bbt.innerHTML = '<button class="btn gold" id="bplay">▶ Играть</button>';
+    } else {
+      UPD_STATE = 'нет связи с сервером обновлений';
+      bpr.style.width = '0';
+      bst.innerHTML = '⚠️ Не удалось проверить обновления — нет связи с сервером. Можно играть в текущую версию.';
+      bbt.innerHTML = '<button class="btn gold" id="bplay">▶ Играть</button><button class="btn" id="bretry">↻ Повторить</button>';
+      $('#bretry').onclick = screenBoot;
+    }
+    $('#bplay').onclick = () => { snd('click'); startGame(); };
+  }
+
   loadSave().then(async () => {
-    setTimeout(checkUpdate, 1500);
     if (NATIVE) setInterval(() => fetch('/api/ping', { cache: 'no-store' }).catch(() => {}), 3000);
     armBack();
-    if (STORE.auto && STORE.profiles[STORE.auto]) login(STORE.auto); else screenAuth();
+    if (NATIVE || WV) screenBoot(); else startGame();
   });
   window.__HP = { get S() { return S; }, get C() { return C; }, get SAVE() { return SAVE; }, profXP: () => profXP(), rerender: () => screenTitle() };
 })();

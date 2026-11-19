@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>HOME POLICE</title><meta name="hp-version" content="27"><script>(function(){var V=27;window.HP_VERSION=V;
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>HOME POLICE</title><meta name="hp-version" content="28"><script>(function(){var V=28;window.HP_VERSION=V;
 if(navigator.userAgent.indexOf('; wv)')<0||window.__HP_BOOTED)return;
 try{var c=JSON.parse(localStorage.getItem('hp_game_cache')||'null');
 if(c&&c.ver>V&&c.html&&c.html.indexOf('name="hp-version" content="'+c.ver+'"')>0){window.__HP_SKIP=true;
@@ -2122,6 +2122,7 @@ window.CASES.push({
           post({ id: d.id, ok: true });
           return;
         }
+        if (d.op === 'mem') { post({ id: d.id, heap: M.HEAPF32 ? M.HEAPF32.buffer.byteLength : 0 }); return; }
         if (d.op === 'unload') {
           if (tts[d.name]) { tts[d.name].free(); delete tts[d.name]; }
           post({ id: d.id, ok: true });
@@ -2149,28 +2150,69 @@ window.CASES.push({
   }
 
   const dec = new TextDecoder();
-  let PW = null, TW = null;
-  const loaded = []; // порядок использования голосов (для выгрузки старых)
+  // один поток разбора текста и 1–2 потока синтеза (на многоядерных устройствах — два, вдвое быстрее)
+  let PW = null;
+  const TWS = [];
+  let TJS = null, TWASM = null;
+  async function mkTts() {
+    const T = { w: mkWorker(), loaded: [], loadChain: Promise.resolve(), chain: Promise.resolve(), busy: 0, dead: false };
+    await T.w.call({ op: 'init', kind: 'tts', js: TJS, wasm: TWASM.slice(0) });
+    return T;
+  }
   async function startEngine() {
     const [pj, pw, pd, tj, tw] = await Promise.all(['phon.js', 'phon.wasm', 'phon.data', 'tts.js', 'tts.wasm'].map(getFile));
     if (!pj || !pw || !pd || !tj || !tw) throw new Error('нет файлов движка');
-    PW = mkWorker(); TW = mkWorker();
+    TJS = dec.decode(tj); TWASM = tw;
+    PW = mkWorker();
     await PW.call({ op: 'init', kind: 'phon', js: dec.decode(pj), wasm: pw, data: pd });
-    await TW.call({ op: 'init', kind: 'tts', js: dec.decode(tj), wasm: tw });
+    TWS.push(await mkTts());
   }
-  let loadChain = Promise.resolve();
-  function ensureVoice(id) {
-    const job = loadChain.then(async () => {
-      const i = loaded.indexOf(id);
-      if (i >= 0) { loaded.splice(i, 1); loaded.push(id); return; }
-      while (loaded.length >= MAX_LOADED) { const old = loaded.shift(); await TW.call({ op: 'unload', name: old }); }
+  // второй поток синтеза поднимаем в фоне; если не получилось (мало памяти) — работаем с одним
+  async function startSecond() {
+    // заранее загружаем и женский голос, чтобы первая реплика женщины не ждала загрузки
+    try { const fv = VOICES.find(v => v.f); if (fv) await ensureVoice(TWS[0], fv.id); } catch (e) { /* ignore */ }
+    // и голос детектива (на ПК — Денис)
+    try { if (!MOBILE && VOICES.some(v => v.id === 'denis')) await ensureVoice(TWS[0], 'denis'); } catch (e) { /* ignore */ }
+    if ((navigator.hardwareConcurrency || 2) < 4 || TWS.length > 1) return;
+    try {
+      const T = await mkTts();
+      await ensureVoice(T, VOICES[0].id);
+      TWS.push(T);
+    } catch (e) { /* остаёмся на одном потоке */ }
+  }
+  function ensureVoice(T, id) {
+    const job = T.loadChain.then(async () => {
+      const i = T.loaded.indexOf(id);
+      if (i >= 0) { T.loaded.splice(i, 1); T.loaded.push(id); return; }
+      while (T.loaded.length >= MAX_LOADED) { const old = T.loaded.shift(); await T.w.call({ op: 'unload', name: old }); }
       const [m, t] = await Promise.all([getFile(id + '.onnx'), getFile(id + '.txt')]);
       if (!m || !t) throw new Error('голос не скачан');
-      await TW.call({ op: 'load', name: id, model: m, tokens: t });
-      loaded.push(id);
+      await T.w.call({ op: 'load', name: id, model: m, tokens: t });
+      T.loaded.push(id);
     });
-    loadChain = job.catch(() => {});
+    T.loadChain = job.catch(() => {});
     return job;
+  }
+  // синтез одного предложения на наименее занятом потоке
+  function synthOn(id, ph, speed, alive) {
+    const live = TWS.filter(T => !T.dead);
+    // предпочитаем поток, где этот голос уже загружен (загрузка голоса дольше синтеза фразы)
+    const score = T => T.busy + (T.loaded.includes(id) ? 0 : 2);
+    const T = live.reduce((a, b) => (score(b) < score(a) ? b : a), live[0]);
+    T.busy++;
+    const run = async () => {
+      if (!alive()) return null;
+      try {
+        await ensureVoice(T, id);
+        return await T.w.call({ op: 'gen', name: id, ph, speed });
+      } catch (e) {
+        if (T !== TWS[0]) { T.dead = true; await ensureVoice(TWS[0], id); return await TWS[0].w.call({ op: 'gen', name: id, ph, speed }); }
+        throw e;
+      }
+    };
+    const pr = T.chain.then(run);
+    T.chain = pr.catch(() => {}).then(() => { T.busy--; });
+    return pr;
   }
 
   // ---------- синтез заранее и воспроизведение ----------
@@ -2199,38 +2241,42 @@ window.CASES.push({
     });
     return out;
   }
-  // очередь синтеза: задания выполняются строго по порядку
-  let synth = Promise.resolve();
+  // подготовка фразы: разбор на звуки по очереди, синтез предложений — параллельно на свободных потоках
+  let phonChain = Promise.resolve();
   function prepare(text, opts) {
     opts = opts || {};
-    if (!st.ready) return null;
+    if (!st.ready || !TWS.length) return null;
     const id = opts.voice && VOICES.some(v => v.id === opts.voice) ? opts.voice : VOICES[0].id;
-    const job = { gen, chunks: [], waiters: [], done: false, failed: false, rate: opts.pitch || 1, onFail: opts.onFail };
+    const job = { gen, slots: [], total: null, waiters: [], failed: false, rate: opts.pitch || 1, onFail: opts.onFail };
     const wake = () => { const w = job.waiters; job.waiters = []; w.forEach(f => f()); };
+    const alive = () => job.gen === gen;
+    const fail = e => {
+      job.failed = true;
+      st.error = String(e && e.message || e); st.fails = (st.fails || 0) + 1;
+      if (st.fails >= 3) { st.ready = false; st.state = 'error'; emit(); }
+    };
     const parts = splitText(text);
-    synth = synth.then(async () => {
-      if (job.gen !== gen) { job.done = true; wake(); return; }
+    phonChain = phonChain.then(async () => {
+      const all = [];
       try {
-        await ensureVoice(id);
-        for (const p of parts) {
-          if (job.gen !== gen) break;
-          const ph = (await PW.call({ op: 'phon', text: p })).res;
-          for (const x of ph) {
-            if (job.gen !== gen) break;
-            const r = await TW.call({ op: 'gen', name: id, ph: x, speed: opts.speed || 1 });
-            job.chunks.push({ s: trim(r.samples, r.sr), sr: r.sr }); wake();
-          }
-        }
-      } catch (e) {
-        job.failed = true;
-        st.error = String(e && e.message || e); st.fails = (st.fails || 0) + 1;
-        if (st.fails >= 3) { st.ready = false; st.state = 'error'; emit(); }
-      }
-      job.done = true; wake();
+        if (alive()) for (const p of parts) (await PW.call({ op: 'phon', text: p })).res.forEach(x => all.push(x));
+      } catch (e) { fail(e); }
+      job.total = alive() ? all.length : 0; wake();
+      all.forEach((ph, k) => {
+        synthOn(id, ph, opts.speed || 1, alive).then(r => { job.slots[k] = r ? { s: trim(r.samples, r.sr), sr: r.sr } : null; wake(); })
+          .catch(e => { fail(e); job.slots[k] = null; wake(); });
+      });
     });
     return job;
   }
-  const nextChunk = (job, k) => new Promise(res => { const chk = () => (job.chunks.length > k || job.done ? res(job.chunks[k] || null) : job.waiters.push(chk)); chk(); });
+  const nextChunk = (job, k) => new Promise(res => {
+    const chk = () => {
+      if (job.total !== null && k >= job.total) return res(null);
+      if (job.slots[k] !== undefined) return res(job.slots[k]);
+      job.waiters.push(chk);
+    };
+    chk();
+  });
   // играть подготовленную фразу: started — когда зазвучала, ended — когда закончилась
   function play(job) {
     let onStart, onEnd;
@@ -2280,8 +2326,9 @@ window.CASES.push({
       await ensureFiles();
       st.state = 'start'; emit();
       await startEngine();
-      await ensureVoice(VOICES[0].id);
+      await ensureVoice(TWS[0], VOICES[0].id);
       st.state = 'ready'; st.ready = true; st.done = 1; emit();
+      setTimeout(startSecond, 1500);
     } catch (e) {
       st.state = 'error'; st.error = String(e && e.message || e); st.ready = false; emit();
       started = false;
@@ -2295,7 +2342,10 @@ window.CASES.push({
     status: () => st,
     onChange: f => listeners.push(f),
     start: run, speak, prepare, play, stop, speaking,
-    test: async () => { await run(); return st; }
+    test: async () => { await run(); return st; },
+    _mem: async () => (await TWS[0].w.call({ op: 'mem' })).heap,
+    _workers: () => TWS.filter(T => !T.dead).length,
+    _gen: async (t, v) => { const ph = (await PW.call({ op: 'phon', text: t })).res; const t0 = performance.now(); const rs = await Promise.all(ph.map(x => synthOn(v, x, 1, () => true))); const n = rs.reduce((a, r) => a + r.samples.length / r.sr, 0); return { synth: (performance.now() - t0) / 1000, audio: n }; }
   };
   // скачивание и запуск — сами, через несколько секунд после старта игры
   setTimeout(run, 2500);

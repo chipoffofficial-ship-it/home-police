@@ -1036,7 +1036,9 @@
   // ---------- ОЗВУЧКА ----------
   const TTS_WEB = typeof window.speechSynthesis !== 'undefined' && typeof window.SpeechSynthesisUtterance !== 'undefined' && !/; wv\)/.test(navigator.userAgent);
   const TTS_NATIVE = /; wv\)/.test(navigator.userAgent) && /HPTTS/.test(navigator.userAgent);
-  const TTS_OK = () => TTS_NATIVE || TTS_WEB;
+  const PIPER = window.HPPiper || null;
+  const piperOn = () => !!(PIPER && PIPER.status().ready && (!SAVE || !SAVE.settings || SAVE.settings.engine !== 'device'));
+  const TTS_OK = () => TTS_NATIVE || TTS_WEB || !!(PIPER && PIPER.status().ready);
   const voiceOn = () => TTS_OK() && (!SAVE || !SAVE.settings || SAVE.settings.voice !== false);
   let RU_VOICES = [];
   function loadVoices() { if (!TTS_WEB) return; RU_VOICES = speechSynthesis.getVoices().filter(v => /^ru/i.test(v.lang)); }
@@ -1065,20 +1067,51 @@
     const best = cat.filter(v => v.best).length ? cat.filter(v => v.best) : cat;
     return (f ? best[0] : best[Math.min(1, best.length - 1)]).id;
   }
+  function piperLine() {
+    if (!PIPER) return '';
+    const p = PIPER.status();
+    if (p.ready) return '✅ Голоса Piper готовы — работают без интернета.';
+    if (p.state === 'download') return `⏳ Скачиваются голоса Piper: <b>${Math.floor(p.done * 100)}%</b> (≈${Math.round(PIPER.TOTAL / 1048576)} МБ, один раз). Пока звучат голоса устройства.`;
+    if (p.state === 'check' || p.state === 'start' || p.state === 'idle') return '⏳ Запускаются голоса Piper…';
+    return '⚠️ Голоса Piper пока недоступны' + (p.error ? ` (${esc(p.error)})` : '') + '. Игра попробует ещё раз сама, а пока звучат голоса устройства.';
+  }
   function openVoices() {
     const cat = voiceCatalog();
+    if (PIPER && (PIPER.status().ready || !cat.length)) {
+      const p = PIPER.status(), V = PIPER.VOICES;
+      const sel = f => { const pool = V.filter(v => v.f === f); const cur = piperVoice(f ? 'vera' : 'gromov', f); return `<select class="inp" id="${f ? 'pvf' : 'pvm'}" style="margin:6px 0">${pool.map(v => `<option value="${v.id}" ${cur === v.id ? 'selected' : ''}>${esc(v.name)}</option>`).join('')}</select>`; };
+      popup(`<h2>🗣️ Голоса персонажей</h2><p class="hint" style="line-height:1.5">${piperLine()}</p>
+        ${p.ready ? `<label style="display:flex;gap:8px;align-items:center;margin:8px 0"><input type="checkbox" id="peng" ${SAVE.settings.engine !== 'device' ? 'checked' : ''}> Использовать голоса Piper</label>
+        <b>Громов и мужчины</b>${sel(false)}<button class="btn sm" id="pm">▶ Послушать</button>
+        <div style="height:14px"></div><b>Вера и женщины</b>${sel(true)}<button class="btn sm" id="pf">▶ Послушать</button>
+        <p class="hint">Остальные персонажи получают свой голос и тембр автоматически.</p><p class="hint" style="font-size:11.5px;opacity:.75">Голоса Piper: Дмитрий, Денис (NabuCasa, CC0), Ирина (RHVoice), Руслан (корпус RUSLAN, CC BY-NC-SA 4.0). Движок: sherpa-onnx, espeak-ng.</p>` : ''}
+        ${cat.length ? '<div style="height:10px"></div><button class="btn sm" id="pdev">⚙️ Голоса устройства</button>' : ''}`, m => {
+        const q = x => m.querySelector(x);
+        const save = () => { if (q('#pvm')) { SAVE.settings.pMale = q('#pvm').value; SAVE.settings.pFemale = q('#pvf').value; } if (q('#peng')) SAVE.settings.engine = q('#peng').checked ? 'piper' : 'device'; persist(); };
+        ['#pvm', '#pvf', '#peng'].forEach(x => { if (q(x)) q(x).onchange = save; });
+        if (q('#pm')) q('#pm').onclick = () => { save(); ttsStop(); sayAs(false, 'Комиссар Громов на связи. Дело серьёзное, работаем.'); };
+        if (q('#pf')) q('#pf').onclick = () => { save(); ttsStop(); sayAs(true, 'Здравствуйте. Я Вера Соколова, экспертиза готова.'); };
+        if (q('#pdev')) q('#pdev').onclick = () => { save(); closeOv(); openDeviceVoices(); };
+      });
+      return;
+    }
+    openDeviceVoices();
+  }
+  function openDeviceVoices() {
+    const cat = voiceCatalog();
+    const pl = piperLine();
     if (!cat.length) { popup('<h2>🗣️ Голоса</h2><p>Русских голосов на устройстве не найдено. Нажмите «🎙️ Проверить озвучку» в меню — там подсказка, как их добавить.</p>'); return; }
     const sel = f => `<select class="inp" id="${f ? 'vf' : 'vm'}" style="margin:6px 0">${cat.map(v => `<option value="${esc(v.id)}" ${pickVoice(f) === v.id ? 'selected' : ''}>${v.best ? '⭐ ' : ''}${esc(v.label)}</option>`).join('')}</select>`;
-    popup(`<h2>🗣️ Голоса персонажей</h2><p class="hint">⭐ — самые естественные голоса. Выберите и послушайте.</p>
+    popup(`<h2>🗣️ Голоса персонажей</h2>${pl ? `<p class="hint" style="line-height:1.5">${pl}</p>` : ''}<p class="hint">⭐ — самые естественные голоса. Выберите и послушайте.</p>
       <b>Мужчины</b>${sel(false)}<button class="btn sm" id="pm">▶ Послушать</button>
       <div style="height:14px"></div><b>Женщины</b>${sel(true)}<button class="btn sm" id="pf">▶ Послушать</button>`, m => {
       const save = () => { SAVE.settings.vMale = m.querySelector('#vm').value; SAVE.settings.vFemale = m.querySelector('#vf').value; persist(); };
       m.querySelector('#vm').onchange = save; m.querySelector('#vf').onchange = save;
-      m.querySelector('#pm').onclick = () => { save(); ttsStop(); sayAs(false, 'Комиссар Громов на связи. Дело серьёзное, работаем.'); };
-      m.querySelector('#pf').onclick = () => { save(); ttsStop(); sayAs(true, 'Здравствуйте. Я Вера Соколова, экспертиза готова.'); };
+      m.querySelector('#pm').onclick = () => { save(); ttsStop(); sayAs(false, 'Комиссар Громов на связи. Дело серьёзное, работаем.', true); };
+      m.querySelector('#pf').onclick = () => { save(); ttsStop(); sayAs(true, 'Здравствуйте. Я Вера Соколова, экспертиза готова.', true); };
     });
   }
-  function sayAs(f, text) { const was = SAVE.settings.voice; SAVE.settings.voice = true; say(f ? 'vera' : 'gromov', text, f); SAVE.settings.voice = was; }
+  function sayAs(f, text, dev) { const was = SAVE.settings.voice; SAVE.settings.voice = true; if (dev) sayDevice(f ? 'vera' : 'gromov', clean(text), f); else say(f ? 'vera' : 'gromov', text, f); SAVE.settings.voice = was; }
   function voiceFor(pid) {
     const P = (C && C.people && C.people[pid]) || {};
     const f = !!P.f, h = hashStr(pid || 'x');
@@ -1098,8 +1131,27 @@
     return { v, vid, pitch, rate };
   }
   function clean(t) { return String(t).replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{FE0F}\u{200D}]/gu, '').replace(/[«»]/g, '"').trim(); }
+  function piperVoice(pid, f) {
+    const V = PIPER.VOICES, fem = V.filter(v => v.f), mal = V.filter(v => !v.f);
+    const pool = (f ? fem : mal).length ? (f ? fem : mal) : V;
+    const pick = SAVE.settings[f ? 'pFemale' : 'pMale'];
+    if (pid === 'gromov' || pid === 'vera') return pool.some(v => v.id === pick) ? pick : pool[0].id;
+    return pool[hashStr(pid || 'x') % pool.length].id;
+  }
+  function sayPiper(pid, t, fOverride) {
+    const P = (C && C.people && C.people[pid]) || {};
+    const f = fOverride !== undefined ? fOverride : (pid === 'vera' ? true : pid === 'gromov' ? false : !!P.f), h = hashStr(pid || 'x');
+    const pitch = pid === 'gromov' || pid === 'vera' || fOverride !== undefined ? 1 : 0.95 + (h % 11) / 100;
+    const speed = P.age > 62 ? 0.9 : P.age && P.age < 28 ? 1.08 : 1.0;
+    return PIPER.speak(t, { voice: piperVoice(pid, f), pitch, speed, onFail: () => { if (TTS_NATIVE || TTS_WEB) sayDevice(pid, t, fOverride); } });
+  }
   function say(pid, text, fOverride) {
     const t = clean(text); if (!t || !voiceOn()) return 0;
+    if (piperOn() && sayPiper(pid, t, fOverride)) { TTS_LAST = 'piper'; return Math.min(16000, 900 + t.length * 66); }
+    if (!TTS_NATIVE && !TTS_WEB) return 0;
+    return sayDevice(pid, t, fOverride);
+  }
+  function sayDevice(pid, t, fOverride) {
     const vf = voiceFor(pid); if (fOverride !== undefined) { vf.vid = pickVoice(fOverride); if (TTS_WEB) vf.v = RU_VOICES.find(x => x.name === vf.vid) || vf.v; }
     try {
       if (TTS_NATIVE) TTS_LAST = window.prompt('hptts:' + vf.pitch.toFixed(2) + (vf.vid && SHELL_VER >= 2 ? ':' + vf.vid : ''), t);
@@ -1130,10 +1182,23 @@
         const all = speechSynthesis.getVoices();
         t = `Русских голосов найдено: <b>${RU_VOICES.length}</b> из ${all.length}.${RU_VOICES.length ? '<br>' + RU_VOICES.slice(0, 6).map(v => esc(v.name)).join('<br>') : '<br>⚠️ В системе нет русского голоса. Windows: Параметры → Время и язык → Речь → «Добавить голоса» → Русский. В браузере Edge русские голоса есть сразу.'}${TTS_LAST && TTS_LAST.startsWith('error') ? '<br>Ошибка: ' + esc(TTS_LAST) : ''}`;
       } else t = '⚠️ На этом устройстве озвучка недоступна. Для Android установите последнюю версию HOME_POLICE.apk.';
+      if (PIPER && TTS_LAST === 'piper') t = piperLine() + '<br>Фраза отправлена голосу Piper. Если голоса не слышно — проверьте громкость.';
+      else if (PIPER) t = piperLine() + '<br><br>' + (TTS_NATIVE || TTS_WEB ? '<b>Голоса устройства:</b> ' + t : '');
       popup(`<h2>🗣️ Проверка озвучки</h2><p style="line-height:1.6">${t}</p>`);
     }, 1500);
   }
-  function ttsStop() { try { if (TTS_NATIVE) window.prompt('hptts-stop', ''); else if (TTS_WEB) speechSynthesis.cancel(); } catch (e) { /* ignore */ } }
+  // плашка загрузки голосов Piper
+  if (PIPER) {
+    let shown = false;
+    const bar = () => { let b = document.getElementById('pipst'); if (!b) { b = document.createElement('div'); b.id = 'pipst'; b.style.cssText = 'position:fixed;left:50%;bottom:calc(10px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:50;background:rgba(11,14,19,.92);border:1px solid rgba(217,166,74,.5);color:#e8dcc4;border-radius:12px;padding:7px 14px;font-size:13px;pointer-events:none;box-shadow:0 4px 18px rgba(0,0,0,.5);white-space:nowrap'; document.body.appendChild(b); } return b; };
+    PIPER.onChange(p => {
+      if (p.state === 'download') { shown = true; bar().textContent = `🎙️ Скачиваются голоса персонажей: ${Math.floor(p.done * 100)}%`; }
+      else if (p.state === 'start' && shown) bar().textContent = '🎙️ Запускаются голоса персонажей…';
+      else if (p.ready) { const b = document.getElementById('pipst'); if (b) b.remove(); if (shown) { shown = false; try { toast('🎙️ Новые голоса персонажей готовы!'); } catch (e) { /* ignore */ } } }
+      else if (p.state === 'error') { const b = document.getElementById('pipst'); if (b) b.remove(); }
+    });
+  }
+  function ttsStop() { try { if (PIPER) PIPER.stop(); } catch (e) { /* ignore */ } try { if (TTS_NATIVE) window.prompt('hptts-stop', ''); else if (TTS_WEB) speechSynthesis.cancel(); } catch (e) { /* ignore */ } }
   // ---------- РУКОВОДСТВО ----------
   const GUIDE = [
     ['🎯 Цель', [

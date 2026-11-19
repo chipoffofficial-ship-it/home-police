@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>HOME POLICE</title><meta name="hp-version" content="21"><script>(function(){var V=21;window.HP_VERSION=V;
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>HOME POLICE</title><meta name="hp-version" content="22"><script>(function(){var V=22;window.HP_VERSION=V;
 if(navigator.userAgent.indexOf('; wv)')<0||window.__HP_BOOTED)return;
 try{var c=JSON.parse(localStorage.getItem('hp_game_cache')||'null');
 if(c&&c.ver>V&&c.html&&c.html.indexOf('name="hp-version" content="'+c.ver+'"')>0){window.__HP_SKIP=true;
@@ -2943,8 +2943,11 @@ window.CASES.push({
   }
   function pickVoice(f) {
     const cat = voiceCatalog(); if (!cat.length) return null;
+    const off = navigator.onLine === false;
+    const usable = v => !off || !(TTS_NATIVE ? /network/i.test(v.id) : /online|natural/i.test(v.id));
     const saved = SAVE && SAVE.settings && SAVE.settings[f ? 'vFemale' : 'vMale'];
-    if (saved && cat.some(v => v.id === saved)) return saved;
+    if (saved && cat.some(v => v.id === saved && usable(v))) return saved;
+    if (off) { const loc = cat.filter(usable); if (loc.length) cat.splice(0, cat.length, ...loc.map(v => Object.assign({}, v, { best: true }))); }
     const re = f ? /svetlana|dariya|daria|irina|ekaterina|milena|anna|alena|elena|female|жен/i : /dmitry|pavel|yuri|maxim|male|муж/i;
     const g = cat.filter(v => re.test(v.id) && !(f ? false : /female/i.test(v.id)));
     if (g.length) return (g.find(v => v.best) || g[0]).id;

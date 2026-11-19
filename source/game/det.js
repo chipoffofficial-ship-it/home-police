@@ -1054,8 +1054,11 @@
   }
   function pickVoice(f) {
     const cat = voiceCatalog(); if (!cat.length) return null;
+    const off = navigator.onLine === false;
+    const usable = v => !off || !(TTS_NATIVE ? /network/i.test(v.id) : /online|natural/i.test(v.id));
     const saved = SAVE && SAVE.settings && SAVE.settings[f ? 'vFemale' : 'vMale'];
-    if (saved && cat.some(v => v.id === saved)) return saved;
+    if (saved && cat.some(v => v.id === saved && usable(v))) return saved;
+    if (off) { const loc = cat.filter(usable); if (loc.length) cat.splice(0, cat.length, ...loc.map(v => Object.assign({}, v, { best: true }))); }
     const re = f ? /svetlana|dariya|daria|irina|ekaterina|milena|anna|alena|elena|female|жен/i : /dmitry|pavel|yuri|maxim|male|муж/i;
     const g = cat.filter(v => re.test(v.id) && !(f ? false : /female/i.test(v.id)));
     if (g.length) return (g.find(v => v.best) || g[0]).id;

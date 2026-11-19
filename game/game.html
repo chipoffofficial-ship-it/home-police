@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>HOME POLICE</title><meta name="hp-version" content="13"><script>(function(){var V=13;window.HP_VERSION=V;
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>HOME POLICE</title><meta name="hp-version" content="14"><script>(function(){var V=14;window.HP_VERSION=V;
 if(navigator.userAgent.indexOf('; wv)')<0||window.__HP_BOOTED)return;
 try{var c=JSON.parse(localStorage.getItem('hp_game_cache')||'null');
 if(c&&c.ver>V&&c.html&&c.html.indexOf('name="hp-version" content="'+c.ver+'"')>0){window.__HP_SKIP=true;
@@ -336,6 +336,16 @@ textarea.notes{width:100%;min-height:200px;background:#0f141d;border:1px solid #
 .linkbtn{background:none;border:none;color:var(--mut);font-size:14px;cursor:pointer;padding:8px;text-decoration:underline;text-underline-offset:3px}
 .linkbtn:hover{color:#fff}
 @media (max-width:760px){.title.boot{justify-content:flex-start;padding-top:max(80px,env(safe-area-inset-top));padding-bottom:max(28px,env(safe-area-inset-bottom));min-height:100%;box-sizing:border-box}.title.boot .card{margin-top:auto!important}}
+.title.mainmenu{position:relative}
+.topmenu{position:sticky;top:0;z-index:20;width:100%;max-width:1180px;display:flex;align-items:center;gap:10px;padding:12px 4px;margin-bottom:6px}
+.topmenu .sp{flex:1}
+.rankchip{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.05);border:1px solid rgba(217,166,74,.5);color:inherit;border-radius:999px;padding:8px 14px;font-size:14px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:70%}
+.rankchip small{opacity:.65;margin-left:4px}
+.menupanel{position:absolute;right:4px;top:58px;min-width:250px;background:#141922;border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:8px;box-shadow:0 18px 50px rgba(0,0,0,.6);display:flex;flex-direction:column;gap:2px;text-align:left}
+.menupanel .mi{background:none;border:none;color:inherit;font-size:15px;text-align:left;padding:12px 12px;border-radius:10px;cursor:pointer}
+.menupanel .mi:hover{background:rgba(255,255,255,.07)}
+.menupanel .mi.red{color:#ff8a80}
+.menupanel .mver{font-size:12px;opacity:.55;padding:8px 12px 4px;border-top:1px solid rgba(255,255,255,.08);margin-top:4px}
 </style></head><body><div id="fog"><i></i><i></i></div><div id="app"></div>
 <script>// ===== Портреты персонажей и «фотографии» =====
 (function (root) {
@@ -3035,12 +3045,19 @@ window.CASES.push({
   function screenTitle() {
     if (S) armBack();
     S = null; C = null; clearInterval(tickT);
-    app.innerHTML = `<div class="title fade"><div class="logoimg">${BADGE_SVG}</div><h1 class="logo">HOME POLICE</h1><div class="sub">Детективные расследования туманного города</div>
+    app.innerHTML = `<div class="title mainmenu fade"><div class="topmenu"><button class="rankchip" id="ranksB">${rankOf(profXP()).ic} <b>${esc(rankOf(profXP()).n)}</b> ${esc(USER)}<small>${profXP()} оч.</small></button><div class="sp"></div><button class="btn" id="menuB">☰ Меню</button>
+      <div class="menupanel" id="menuP" style="display:none">
+        <button class="mi" id="guideB">📖 Как играть</button>
+        <button class="mi" id="ranksB2">🎖️ Звания и помощники</button>
+        <button class="mi" id="snd">${SAVE.settings.sound ? '🔊 Звук: включён' : '🔈 Звук: выключен'}</button>
+        <button class="mi" id="lo">👤 Сменить детектива</button>
+        ${NATIVE ? '<button class="mi red" id="quit">⏻ Выйти из игры</button>' : ''}
+        <div class="mver">Версия ${window.HP_VERSION || 1} · ${NATIVE || WV ? (UPD_STATE || '—') : 'онлайн'}</div>
+      </div></div><div class="logoimg">${BADGE_SVG}</div><h1 class="logo">HOME POLICE</h1><div class="sub">Детективные расследования туманного города</div>
       <div class="filters">${[['all', 'Все'], ['new', 'Новые'], ['prog', 'В процессе'], ['done', 'Раскрытые']].map(([k, l]) => `<button class="btn sm ${FILT === k ? 'gold' : ''}" data-f="${k}">${l}</button>`).join('')}<span class="chip">Раскрыто: <b>${CASES.filter(c => { const s2 = caseSt(c); return s2 && s2.accused && s2.accused.killerOk; }).length}</b> из ${CASES.length}</span></div>
       <div class="caselist">
       ${CASES.map((c, i) => { const st = caseSt(c); const done = st && st.accused && st.accused.killerOk; const k = done ? 'done' : st ? 'prog' : 'new'; if (FILT !== 'all' && FILT !== k) return ''; const ic = c._meta ? { murder: '🔪', poison: '🧪', theft: '💰', arson: '🔥' }[c._meta.crime] : '💎'; return `<div class="casecard${c.tutorial ? ' tut' : ''}" data-n="${c.tutorial ? 0 : c.num || i}" data-c="${c.id}"><span class="cic">${ic}</span><h3>${esc(c.title)}</h3><div class="m">${esc(c.subtitle)}</div><div style="margin-top:10px;font-weight:600;font-size:13.5px">${done ? `✅ ${st.accused.score}/100 · ${esc(st.accused.rank)}` : st ? '🔎 В процессе' : (c.tutorial ? '🎓 Начните с него: обучение с подсказками' : c.id === 'case1' || (!c._meta && !c.tutorial) ? '⭐ Авторское дело' : 'Новое дело')}</div></div>`; }).join('')}
-      </div>
-      <div style="display:flex;gap:10px;margin-top:22px;flex-wrap:wrap;justify-content:center"><span class="chip" style="padding:9px 14px">${rankOf(profXP()).ic} ${esc(rankOf(profXP()).n)} ${esc(USER)} · ${profXP()} оч.</span><button class="btn gold" id="guideB">📖 Как играть</button><button class="btn" id="ranksB">🎖️ Звания</button><span class="chip" style="padding:9px 14px">Версия ${window.HP_VERSION || 1} · <span id="updst">${NATIVE || WV ? (UPD_STATE || '—') : 'онлайн'}</span></span><button class="btn" id="lo">Сменить детектива</button><button class="btn" id="snd">${SAVE.settings.sound ? '🔊 Звук включён' : '🔈 Звук выключен'}</button>${NATIVE ? '<button class="btn red" id="quit">⏻ Выйти из игры</button>' : ''}</div>${NATIVE ? '<div class="hint" style="margin-top:12px">F11 — переключить полноэкранный и оконный режим</div>' : ''}</div>`;
+      </div>${NATIVE ? '<div class="hint" style="margin-top:16px">F11 — переключить полноэкранный и оконный режим</div>' : ''}</div>`;
     document.querySelectorAll('.filters [data-f]').forEach(b => b.onclick = () => { FILT = b.dataset.f; screenTitle(); });
     document.querySelectorAll('.casecard[data-c]').forEach(d => d.onclick = () => {
       const id = d.dataset.c, st = SAVE.cases[id];
@@ -3055,6 +3072,9 @@ window.CASES.push({
     $('#snd').onclick = () => { SAVE.settings.sound = !SAVE.settings.sound; persist(); screenTitle(); };
     $('#lo').onclick = logout;
     const rb = $('#ranksB'); if (rb) rb.onclick = () => popup(ranksHTML());
+    const rb2 = $('#ranksB2'); if (rb2) rb2.onclick = () => popup(ranksHTML());
+    const mp = $('#menuP'); $('#menuB').onclick = e => { e.stopPropagation(); mp.style.display = mp.style.display === 'none' ? '' : 'none'; };
+    document.querySelector('.title.mainmenu').addEventListener('click', e => { if (!e.target.closest('#menuP') && !e.target.closest('#menuB')) mp.style.display = 'none'; });
     const gb = $('#guideB'); if (gb) gb.onclick = openGuide;
     const q = $('#quit'); if (q) q.onclick = askQuit;
   }

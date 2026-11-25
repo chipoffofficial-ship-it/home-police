@@ -1,0 +1,19 @@
+name: GigaChat Worker
+
+on:
+  workflow_dispatch:
+
+jobs:
+  edit:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Позволяет мне делать коммиты
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GIGACHAT_PAT }}
+
+      - name: Wait for instructions
+        run: echo "Waiting for GigaChat to modify the source code..."
